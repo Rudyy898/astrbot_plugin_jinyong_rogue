@@ -1,0 +1,8 @@
+{
+  "enable_group_save": {
+    "description": "是否启用群聊内玩家独立存档",
+    "type": "bool",
+    "hint": "当前版本按用户ID保存角色，后续可扩展为群聊隔离存档",
+    "default": true
+  }
+}
