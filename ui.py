@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-import base64
-import html
+import hashlib
 import re
 from pathlib import Path
+from uuid import uuid4
 
 
 ASSET_DIR = Path(__file__).resolve().parent / "assets" / "backgrounds"
@@ -22,9 +22,6 @@ SCENE_META = {
     "help": {"title": "指令", "bg": "tower.jpg", "tone": "#6f86a7"},
     "tower": {"title": "金庸踢门团", "bg": "tower.jpg", "tone": "#6f86a7"},
 }
-
-_BG_CACHE: dict[str, str] = {}
-
 
 def infer_scene(text: str, fallback: str = "tower") -> str:
     markers = (
@@ -46,133 +43,165 @@ def infer_scene(text: str, fallback: str = "tower") -> str:
     return fallback
 
 
-def render_card(text: str, scene: str = "tower") -> str:
+def render_card_image(text: str, scene: str, output_dir: Path) -> Path | None:
+    try:
+        from PIL import Image, ImageDraw, ImageFont
+    except Exception:
+        return None
+
     scene = scene if scene in SCENE_META else "tower"
     meta = SCENE_META[scene]
     body, hint = _split_hint(text)
     title = _extract_title(body, str(meta["title"]))
-    bg = _background_data_url(str(meta["bg"]))
-    tone = str(meta["tone"])
-    body_html = _body_html(body)
-    hint_html = f'<div class="hint">{html.escape(hint)}</div>' if hint else ""
+    lines = _plain_body_lines(body)
+    bg_path = ASSET_DIR / str(meta["bg"])
+    width = 600
+    pad = 18
+    gap = 7
+    title_font = _load_font(ImageFont, 24, bold=True)
+    tag_font = _load_font(ImageFont, 13)
+    body_font = _load_font(ImageFont, 16)
+    hint_font = _load_font(ImageFont, 14)
 
-    return f"""<render>
-<style>
-* {{ box-sizing: border-box; }}
-body {{
-  margin: 0;
-  padding: 10px;
-  width: 600px;
-  background: transparent;
-  font-family: "Noto Serif SC", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", serif;
-  color: #f8f1df;
-}}
-.jy-card {{
-  position: relative;
-  overflow: hidden;
-  border-radius: 12px;
-  border: 1px solid rgba(232, 210, 158, .42);
-  background:
-    linear-gradient(180deg, rgba(18, 15, 12, .86), rgba(22, 18, 14, .94)),
-    url("{bg}");
-  background-size: cover;
-  background-position: center;
-  box-shadow: 0 10px 26px rgba(0,0,0,.38);
-}}
-.jy-card::before {{
-  content: "";
-  position: absolute;
-  inset: 0;
-  background:
-    linear-gradient(90deg, rgba(8,8,7,.82) 0%, rgba(8,8,7,.70) 48%, rgba(8,8,7,.48) 100%),
-    radial-gradient(circle at 84% 8%, {tone}66, transparent 38%);
-}}
-.jy-inner {{
-  position: relative;
-  z-index: 1;
-  padding: 16px 16px 14px;
-}}
-.jy-head {{
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid rgba(232, 210, 158, .28);
-}}
-.jy-title {{
-  margin: 0;
-  font-size: 22px;
-  line-height: 1.2;
-  letter-spacing: 0;
-  color: #ffe2a4;
-  font-weight: 700;
-}}
-.jy-tag {{
-  flex: 0 0 auto;
-  font-size: 12px;
-  color: #f2d9a4;
-  opacity: .82;
-}}
-.jy-body {{
-  margin-top: 10px;
-  display: grid;
-  gap: 6px;
-  font-size: 15px;
-  line-height: 1.52;
-}}
-.line {{
-  padding: 7px 9px;
-  border-radius: 8px;
-  background: rgba(0,0,0,.26);
-  border: 1px solid rgba(255,255,255,.07);
-  word-break: break-word;
-}}
-.line.major {{
-  border-color: rgba(255, 217, 147, .30);
-  background: rgba(79, 51, 25, .36);
-  color: #fff3d4;
-}}
-.line.roll {{
-  font-family: "Noto Sans SC", "PingFang SC", sans-serif;
-  color: #d9ecff;
-}}
-.hint {{
-  margin-top: 10px;
-  padding: 8px 10px;
-  border-radius: 8px;
-  background: rgba(255, 226, 164, .13);
-  border: 1px solid rgba(255, 226, 164, .22);
-  color: #ffe8b8;
-  font-size: 13px;
-  line-height: 1.45;
-  word-break: break-word;
-}}
-</style>
-<div class="jy-card">
-  <div class="jy-inner">
-    <div class="jy-head">
-      <h1 class="jy-title">{html.escape(title)}</h1>
-      <div class="jy-tag">金庸DND肉鸽</div>
-    </div>
-    <div class="jy-body">{body_html}</div>
-    {hint_html}
-  </div>
-</div>
-</render>"""
+    draw_probe = ImageDraw.Draw(Image.new("RGB", (width, 20)))
+    blocks = []
+    for line in lines[:18]:
+        wrapped = _wrap_text(draw_probe, line, body_font, width - pad * 2 - 20)
+        kind = "major" if any(key in line for key in ("结果：", "获得", "通关奖励", "开局成功", "成功：", "自然20")) else "normal"
+        if "d20=" in line or "d100=" in line or "掷骰=" in line:
+            kind = "roll"
+        blocks.append((kind, wrapped))
+    if len(lines) > 18:
+        blocks.append(("normal", [f"其余 {len(lines) - 18} 行请用 /金庸状态 或 /金庸背包 查看。"]))
+
+    hint_lines = _wrap_text(draw_probe, hint, hint_font, width - pad * 2 - 20) if hint else []
+    line_h = 24
+    height = 20 + 36 + 12
+    for _, wrapped in blocks:
+        height += max(36, 14 + line_h * len(wrapped)) + gap
+    if hint_lines:
+        height += 14 + 22 * len(hint_lines) + 12
+    height = min(max(height + 10, 190), 920)
+
+    base = _load_background(Image, bg_path, width, height)
+    overlay = Image.new("RGBA", (width, height), (9, 8, 7, 170))
+    base = Image.alpha_composite(base.convert("RGBA"), overlay)
+    draw = ImageDraw.Draw(base)
+
+    tone = _hex_to_rgb(str(meta["tone"]))
+    draw.rounded_rectangle((8, 8, width - 8, height - 8), radius=14, outline=(232, 210, 158, 108), width=1)
+    draw.rectangle((0, 0, width, height), fill=(0, 0, 0, 32))
+
+    x = pad
+    y = 16
+    draw.text((x, y), title, font=title_font, fill=(255, 226, 164, 255))
+    tag = "金庸DND肉鸽"
+    tag_w = draw.textlength(tag, font=tag_font)
+    draw.text((width - pad - tag_w, y + 8), tag, font=tag_font, fill=(242, 217, 164, 205))
+    y += 38
+    draw.line((pad, y, width - pad, y), fill=(232, 210, 158, 72), width=1)
+    y += 11
+
+    for kind, wrapped in blocks:
+        block_h = max(36, 14 + line_h * len(wrapped))
+        if y + block_h > height - 22:
+            break
+        fill = (0, 0, 0, 82)
+        outline = (255, 255, 255, 20)
+        text_fill = (248, 241, 223, 255)
+        if kind == "major":
+            fill = (79, 51, 25, 108)
+            outline = (255, 217, 147, 76)
+            text_fill = (255, 243, 212, 255)
+        elif kind == "roll":
+            fill = (20, 44, 62, 100)
+            outline = (166, 214, 255, 58)
+            text_fill = (217, 236, 255, 255)
+        draw.rounded_rectangle((pad, y, width - pad, y + block_h), radius=8, fill=fill, outline=outline, width=1)
+        ty = y + 7
+        for wrapped_line in wrapped:
+            draw.text((pad + 10, ty), wrapped_line, font=body_font, fill=text_fill)
+            ty += line_h
+        y += block_h + gap
+
+    if hint_lines and y < height - 20:
+        hint_h = min(14 + 22 * len(hint_lines), height - y - 12)
+        draw.rounded_rectangle((pad, y + 3, width - pad, y + 3 + hint_h), radius=8, fill=(*tone, 46), outline=(255, 226, 164, 58), width=1)
+        ty = y + 10
+        for wrapped_line in hint_lines:
+            if ty + 18 > y + 3 + hint_h:
+                break
+            draw.text((pad + 10, ty), wrapped_line, font=hint_font, fill=(255, 232, 184, 255))
+            ty += 22
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    digest = hashlib.sha1(f"{scene}\n{text}".encode("utf-8")).hexdigest()[:10]
+    output = output_dir / f"jinyong_card_{digest}_{uuid4().hex[:6]}.png"
+    base.convert("RGB").save(output, "PNG", optimize=True)
+    return output
 
 
-def _background_data_url(filename: str) -> str:
-    cached = _BG_CACHE.get(filename)
-    if cached:
-        return cached
-    path = ASSET_DIR / filename
-    if not path.is_file():
-        return ""
-    encoded = base64.b64encode(path.read_bytes()).decode("ascii")
-    data_url = f"data:image/jpeg;base64,{encoded}"
-    _BG_CACHE[filename] = data_url
-    return data_url
+def _load_background(Image, path: Path, width: int, height: int):
+    if path.is_file():
+        try:
+            img = Image.open(path).convert("RGB")
+            src_ratio = img.width / max(1, img.height)
+            dst_ratio = width / max(1, height)
+            if src_ratio > dst_ratio:
+                new_w = int(img.height * dst_ratio)
+                left = (img.width - new_w) // 2
+                img = img.crop((left, 0, left + new_w, img.height))
+            else:
+                new_h = int(img.width / dst_ratio)
+                top = (img.height - new_h) // 2
+                img = img.crop((0, top, img.width, top + new_h))
+            return img.resize((width, height), Image.Resampling.LANCZOS).convert("RGBA")
+        except Exception:
+            pass
+    return Image.new("RGBA", (width, height), (28, 24, 20, 255))
+
+
+def _load_font(ImageFont, size: int, bold: bool = False):
+    candidates = [
+        "/System/Library/Fonts/PingFang.ttc",
+        "/System/Library/Fonts/STHeiti Light.ttc",
+        "/System/Library/Fonts/Hiragino Sans GB.ttc",
+        "/Library/Fonts/Arial Unicode.ttf",
+        "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+        "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
+        "/usr/share/fonts/truetype/wqy/wqy-microhei.ttc",
+    ]
+    for path in candidates:
+        if Path(path).is_file():
+            try:
+                return ImageFont.truetype(path, size=size, index=0)
+            except Exception:
+                continue
+    return ImageFont.load_default()
+
+
+def _wrap_text(draw, text: str, font, max_width: int) -> list[str]:
+    if not text:
+        return []
+    lines: list[str] = []
+    current = ""
+    for char in text:
+        trial = current + char
+        if current and draw.textlength(trial, font=font) > max_width:
+            lines.append(current)
+            current = char
+        else:
+            current = trial
+    if current:
+        lines.append(current)
+    return lines
+
+
+def _hex_to_rgb(value: str) -> tuple[int, int, int]:
+    value = value.strip().lstrip("#")
+    if len(value) != 6:
+        return (111, 134, 167)
+    return tuple(int(value[i:i + 2], 16) for i in (0, 2, 4))
 
 
 def _split_hint(text: str) -> tuple[str, str]:
@@ -196,21 +225,10 @@ def _extract_title(text: str, fallback: str) -> str:
     return fallback
 
 
-def _body_html(text: str) -> str:
+def _plain_body_lines(text: str) -> list[str]:
     lines = [line.strip() for line in text.splitlines() if line.strip()]
     if lines and re.match(r"^【[^】]+】", lines[0]):
         lines[0] = re.sub(r"^【[^】]+】", "", lines[0]).strip()
         if not lines[0]:
             lines = lines[1:]
-
-    html_lines = []
-    for line in lines[:18]:
-        css = "line"
-        if any(key in line for key in ("结果：", "获得", "通关奖励", "开局成功", "成功：", "自然20")):
-            css += " major"
-        if "d20=" in line or "d100=" in line or "掷骰=" in line:
-            css += " roll"
-        html_lines.append(f'<div class="{css}">{html.escape(line)}</div>')
-    if len(lines) > 18:
-        html_lines.append(f'<div class="line">其余 {len(lines) - 18} 行请用 /金庸状态 或 /金庸背包 查看。</div>')
-    return "".join(html_lines) or '<div class="line">暂无内容。</div>'
+    return lines or ["暂无内容。"]

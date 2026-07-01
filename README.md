@@ -20,8 +20,8 @@
 - 全门派进阶线：16 个门派均有本门奇遇二选一进阶武学，互斥锁定
 - 局外强化：通关资源可强化钓鱼准备和初始背囊容量
 - 通关后角色飞升冻结
-- 游戏结算无第三方 Python 依赖，使用 JSON 保存玩家档案
-- 场景小卡片 UI：结合 `astrbot_plugin_html_render` 的显式 `<render>` 逻辑，把回复渲染成聊天窗友好的窄图卡片
+- 使用 JSON 保存玩家档案
+- 场景小卡片 UI：插件内置 Pillow 图片渲染，直接发送聊天窗友好的窄图卡片，不依赖 `astrbot_plugin_html_render`
 
 ## 安装
 
@@ -35,7 +35,7 @@ git clone https://github.com/Rudyy898/astrbot_plugin_jinyong_rogue.git data/plug
 
 ### 图片 UI 依赖
 
-本插件会输出显式 `<render>` 自定义 HTML，由 `astrbot_plugin_html_render` 渲染成图片。建议同时启用 `astrbot_plugin_html_render`，并确保其 Playwright 依赖正常；如果未启用，聊天里会看到原始 `<render>` HTML。
+本插件使用 Pillow 在插件内部生成 PNG 小卡片，并直接通过 AstrBot 图片组件发送。无需安装或启用 `astrbot_plugin_html_render`。如果 Pillow 不可用，插件会自动退回纯文本回复。
 
 ## 指令
 
@@ -193,7 +193,7 @@ astrbot_plugin_jinyong_rogue/
 ├── main.py            # AstrBot 指令入口
 ├── engine.py          # 游戏流程与结算逻辑
 ├── game_data.py       # 门派、难度、事件、钓鱼配置
-├── ui.py              # html_render 小卡片 UI 封装
+├── ui.py              # 内置 PNG 小卡片 UI 封装
 ├── storage.py         # JSON 存档
 ├── metadata.yaml      # AstrBot 插件元数据
 ├── _conf_schema.json  # 插件配置 schema
@@ -204,7 +204,7 @@ astrbot_plugin_jinyong_rogue/
 
 ## 数据
 
-插件不依赖外部数据库。游戏结算逻辑不依赖第三方 Python 包；图片 UI 依赖外部插件 `astrbot_plugin_html_render` 负责渲染。
+插件不依赖外部数据库。图片 UI 使用 Pillow 生成 PNG；如果运行环境缺少 Pillow，会自动退回纯文本。
 
 ## 版本状态
 

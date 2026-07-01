@@ -1,6 +1,6 @@
 name: astrbot_plugin_jinyong_rogue
 display_name: 金庸武侠DND肉鸽踢门团
-desc: 基于DND5e d20检定与金庸武侠门派设定的文字肉鸽踢门游戏插件，支持16门派、7层武神塔、随机事件门、奇遇检定、钓鱼、通关冻结与html_render场景小卡片。
+desc: 基于DND5e d20检定与金庸武侠门派设定的文字肉鸽踢门游戏插件，支持16门派、7层武神塔、随机事件门、奇遇检定、钓鱼、通关冻结与内置PNG场景小卡片。
 version: v0.1.0
 author: Rudyy898
 repo: https://github.com/Rudyy898/astrbot_plugin_jinyong_rogue
