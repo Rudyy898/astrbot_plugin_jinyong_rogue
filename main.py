@@ -8,9 +8,30 @@ from astrbot.api.event import AstrMessageEvent, filter
 from astrbot.api.star import Context, Star, StarTools
 from astrbot.core import AstrBotConfig
 
-from .engine import fish, format_attrs, help_text, new_player, next_floor, open_door, sect_list_text, status_text
-from .game_data import BAITS, DIFFICULTIES, FISHING_SPOTS, SECTS
+from .engine import (
+    apply_pending_meta_rewards,
+    buy_backpack,
+    command_hint_text,
+    discard_item,
+    equip_item,
+    fish,
+    format_attrs,
+    help_text,
+    inventory_text,
+    meta_text,
+    new_player,
+    next_floor,
+    open_door,
+    pickup_item,
+    sect_list_text,
+    status_text,
+    set_active_skill,
+    upgrade_meta_progression,
+    use_consumable,
+)
+from .game_data import BAITS, DIFFICULTIES, FISHING_POOLS, SECTS
 from .storage import JsonStore
+from .ui import infer_scene, render_card
 
 
 class JinyongRoguePlugin(Star):
@@ -20,6 +41,7 @@ class JinyongRoguePlugin(Star):
         self.plugin_id = "astrbot_plugin_jinyong_rogue"
         data_dir = Path(StarTools.get_data_dir(self.plugin_id))
         self.store = JsonStore(data_dir / "players.json")
+        self.meta_store = JsonStore(data_dir / "meta.json")
 
     async def initialize(self) -> None:
         logger.info("[jinyong_rogue] 金庸武侠DND肉鸽踢门团插件已加载")
@@ -33,15 +55,142 @@ class JinyongRoguePlugin(Star):
     def _get_player_or_message(self, event: AstrMessageEvent) -> tuple[dict | None, str | None]:
         player = self.store.get_player(self._user_id(event))
         if player is None:
-            return None, "你还没有角色。发送 /jy开局 门派 [普通|困难] 创建角色。"
+            return None, "你还没有角色。发送 /金庸开局 门派 [普通|困难] 创建角色。"
         return player, None
 
     def _save(self, event: AstrMessageEvent, player: dict) -> None:
         self.store.put_player(self._user_id(event), player)
 
+    def _with_commands(self, text: str, player: dict | None = None, scene: str = "tower") -> str:
+        full_text = f"{text}\n\n{command_hint_text(player)}"
+        return render_card(full_text, infer_scene(full_text, scene))
+
+    def _jy_command_key(self, text: str) -> str | None:
+        text = text.strip()
+        if not (text.startswith("/jy") or text.startswith("/金庸") or text.startswith("/踢门")):
+            return None
+        first = text.split(None, 1)[0]
+        if first in {"/jy", "/金庸", "/踢门"}:
+            return "help"
+        mapping = {
+            "/jy帮助": "help",
+            "/金庸帮助": "help",
+            "/踢门帮助": "help",
+            "/jy门派": "sects",
+            "/金庸门派": "sects",
+            "/踢门门派": "sects",
+            "/jy开局": "new",
+            "/金庸开局": "new",
+            "/踢门开局": "new",
+            "/jy状态": "status",
+            "/金庸状态": "status",
+            "/踢门状态": "status",
+            "/jy踢门": "kick",
+            "/金庸踢门": "kick",
+            "/踢门": "kick",
+            "/jy下一层": "next",
+            "/金庸下一层": "next",
+            "/踢门下一层": "next",
+            "/jy钓鱼": "fish",
+            "/金庸钓鱼": "fish",
+            "/踢门钓鱼": "fish",
+            "/jy背包": "inventory",
+            "/金庸背包": "inventory",
+            "/踢门背包": "inventory",
+            "/jy买包": "buy_bag",
+            "/金庸买包": "buy_bag",
+            "/踢门买包": "buy_bag",
+            "/jy装备": "equip",
+            "/金庸装备": "equip",
+            "/踢门装备": "equip",
+            "/jy技能": "skill",
+            "/金庸技能": "skill",
+            "/踢门技能": "skill",
+            "/jy局外": "meta",
+            "/金庸局外": "meta",
+            "/踢门局外": "meta",
+            "/jy强化": "upgrade",
+            "/金庸强化": "upgrade",
+            "/踢门强化": "upgrade",
+            "/jy丢弃": "discard",
+            "/金庸丢弃": "discard",
+            "/踢门丢弃": "discard",
+            "/jy拾取": "pickup",
+            "/金庸拾取": "pickup",
+            "/踢门拾取": "pickup",
+            "/jy使用": "use",
+            "/金庸使用": "use",
+            "/踢门使用": "use",
+            "/jy重置": "reset",
+            "/金庸重置": "reset",
+            "/踢门重置": "reset",
+        }
+        return mapping.get(first)
+
+    @filter.event_message_type(filter.EventMessageType.ALL, priority=100)
+    async def jy_fallback_route(self, event: AstrMessageEvent) -> AsyncGenerator:
+        """兼容 QQ 官方平台 @ 机器人后中文命令不进入 @filter.command 的情况。"""
+        key = self._jy_command_key(event.message_str or "")
+        if key is None:
+            return
+        if key == "help":
+            yield event.plain_result(self._with_commands(help_text()))
+        elif key == "sects":
+            lines = [sect_list_text(), "", "门派属性："]
+            for name in SECTS:
+                sect = SECTS[name]
+                lines.append(f"{name}：{format_attrs(name)}｜{sect.ultimate}")
+            yield event.plain_result(self._with_commands("\n".join(lines)))
+        elif key == "new":
+            async for msg in self.cmd_new(event):
+                yield msg
+        elif key == "status":
+            async for msg in self.cmd_status(event):
+                yield msg
+        elif key == "kick":
+            async for msg in self.cmd_kick(event):
+                yield msg
+        elif key == "next":
+            async for msg in self.cmd_next_floor(event):
+                yield msg
+        elif key == "fish":
+            async for msg in self.cmd_fish(event):
+                yield msg
+        elif key == "inventory":
+            async for msg in self.cmd_inventory(event):
+                yield msg
+        elif key == "buy_bag":
+            async for msg in self.cmd_buy_bag(event):
+                yield msg
+        elif key == "equip":
+            async for msg in self.cmd_equip(event):
+                yield msg
+        elif key == "skill":
+            async for msg in self.cmd_skill(event):
+                yield msg
+        elif key == "meta":
+            async for msg in self.cmd_meta(event):
+                yield msg
+        elif key == "upgrade":
+            async for msg in self.cmd_upgrade(event):
+                yield msg
+        elif key == "discard":
+            async for msg in self.cmd_discard(event):
+                yield msg
+        elif key == "pickup":
+            async for msg in self.cmd_pickup(event):
+                yield msg
+        elif key == "use":
+            async for msg in self.cmd_use(event):
+                yield msg
+        elif key == "reset":
+            async for msg in self.cmd_reset(event):
+                yield msg
+        event.stop_event()
+
     @filter.command("jy帮助", alias={"jy", "金庸帮助", "踢门帮助"})
     async def cmd_help(self, event: AstrMessageEvent) -> AsyncGenerator:
-        yield event.plain_result(help_text())
+        yield event.plain_result(self._with_commands(help_text()))
 
     @filter.command("jy门派", alias={"金庸门派", "踢门门派"})
     async def cmd_sects(self, event: AstrMessageEvent) -> AsyncGenerator:
@@ -49,85 +198,208 @@ class JinyongRoguePlugin(Star):
         for name in SECTS:
             sect = SECTS[name]
             lines.append(f"{name}：{format_attrs(name)}｜{sect.ultimate}")
-        yield event.plain_result("\n".join(lines))
+        yield event.plain_result(self._with_commands("\n".join(lines)))
 
     @filter.command("jy开局", alias={"金庸开局", "踢门开局"})
     async def cmd_new(self, event: AstrMessageEvent) -> AsyncGenerator:
         parts = event.message_str.strip().split()
         if len(parts) < 2:
-            yield event.plain_result("用法：/jy开局 门派 [普通|困难]\n发送 /jy门派 查看可选门派。")
+            yield event.plain_result(self._with_commands("用法：/金庸开局 门派 [普通|困难]\n发送 /金庸门派 查看可选门派。"))
             return
         sect_name = parts[1]
         difficulty = parts[2] if len(parts) >= 3 else "普通"
         if sect_name not in SECTS:
-            yield event.plain_result("未知门派。\n" + sect_list_text())
+            yield event.plain_result(self._with_commands("未知门派。\n" + sect_list_text()))
             return
         if difficulty not in DIFFICULTIES:
-            yield event.plain_result("未知难度。可选：普通、困难。")
+            yield event.plain_result(self._with_commands("未知难度。可选：普通、困难。"))
             return
         existing = self.store.get_player(self._user_id(event))
         if existing and not existing.get("frozen"):
-            yield event.plain_result("你已有进行中的角色。需要重开请发送 /jy重置 confirm。")
+            yield event.plain_result(self._with_commands("你已有进行中的角色。需要重开请发送 /金庸重置 confirm。", existing))
             return
-        player = new_player(self._user_id(event), self._nickname(event), sect_name, difficulty)
+        meta = self.meta_store.get_player(self._user_id(event)) or {}
+        player = new_player(self._user_id(event), self._nickname(event), sect_name, difficulty, meta)
         self._save(event, player)
         sect = SECTS[sect_name]
-        yield event.plain_result(
+        yield event.plain_result(self._with_commands(
             f"开局成功：{sect_name}（{sect.camp}）｜难度：{difficulty}\n"
             f"属性：{format_attrs(sect_name)}\n"
             f"初始武学：{'、'.join(sect.skills)}\n"
-            "发送 /jy踢门 开启第1层第1个事件门。"
-        )
+            "发送 /金庸踢门 开启第1层第1个事件门。"
+        , player))
 
     @filter.command("jy状态", alias={"金庸状态", "踢门状态"})
     async def cmd_status(self, event: AstrMessageEvent) -> AsyncGenerator:
         player, message = self._get_player_or_message(event)
         if player is None:
-            yield event.plain_result(message)
+            yield event.plain_result(self._with_commands(message))
             return
-        yield event.plain_result(status_text(player))
+        yield event.plain_result(self._with_commands(status_text(player), player))
 
     @filter.command("jy踢门", alias={"金庸踢门", "踢门"})
     async def cmd_kick(self, event: AstrMessageEvent) -> AsyncGenerator:
         player, message = self._get_player_or_message(event)
         if player is None:
-            yield event.plain_result(message)
+            yield event.plain_result(self._with_commands(message))
             return
         text = open_door(player)
+        meta, meta_line = apply_pending_meta_rewards(self.meta_store.get_player(self._user_id(event)) or {}, player)
+        if meta_line:
+            self.meta_store.put_player(self._user_id(event), meta)
+            text += meta_line
         self._save(event, player)
-        yield event.plain_result(text)
+        yield event.plain_result(self._with_commands(text, player))
 
     @filter.command("jy下一层", alias={"金庸下一层", "踢门下一层"})
     async def cmd_next_floor(self, event: AstrMessageEvent) -> AsyncGenerator:
         player, message = self._get_player_or_message(event)
         if player is None:
-            yield event.plain_result(message)
+            yield event.plain_result(self._with_commands(message))
             return
         text = next_floor(player)
         self._save(event, player)
-        yield event.plain_result(text)
+        yield event.plain_result(self._with_commands(text, player))
 
     @filter.command("jy钓鱼", alias={"金庸钓鱼", "武侠钓鱼"})
     async def cmd_fish(self, event: AstrMessageEvent) -> AsyncGenerator:
         player, message = self._get_player_or_message(event)
         if player is None:
-            yield event.plain_result(message)
+            yield event.plain_result(self._with_commands(message))
             return
         parts = event.message_str.strip().split()
-        spot = parts[1] if len(parts) >= 2 else "山涧浅滩"
-        bait = parts[2] if len(parts) >= 3 else "普通蚯蚓饵"
-        if spot == "列表":
-            yield event.plain_result(f"钓点：{'、'.join(FISHING_SPOTS)}\n饵剂：{'、'.join(BAITS)}")
+        bait = parts[1] if len(parts) >= 2 else "普通蚯蚓饵"
+        if bait == "列表":
+            yield event.plain_result(self._with_commands(
+                f"鱼池：{'、'.join(row['name'] for row in FISHING_POOLS.values())}\n"
+                f"饵剂：{'、'.join(BAITS)}"
+            , player))
             return
-        text = fish(player, spot, bait)
+        text = fish(player, bait)
         self._save(event, player)
-        yield event.plain_result(text)
+        yield event.plain_result(self._with_commands(text, player))
+
+    @filter.command("jy使用", alias={"金庸使用", "使用鱼获"})
+    async def cmd_use(self, event: AstrMessageEvent) -> AsyncGenerator:
+        player, message = self._get_player_or_message(event)
+        if player is None:
+            yield event.plain_result(self._with_commands(message))
+            return
+        parts = event.message_str.strip().split(maxsplit=1)
+        if len(parts) < 2:
+            yield event.plain_result(self._with_commands("用法：/金庸使用 鱼获名\n发送 /金庸状态 查看当前鱼获消耗品。", player))
+            return
+        text = use_consumable(player, parts[1])
+        self._save(event, player)
+        yield event.plain_result(self._with_commands(text, player))
+
+    @filter.command("jy背包", alias={"金庸背包", "踢门背包"})
+    async def cmd_inventory(self, event: AstrMessageEvent) -> AsyncGenerator:
+        player, message = self._get_player_or_message(event)
+        if player is None:
+            yield event.plain_result(self._with_commands(message))
+            return
+        text = inventory_text(player)
+        self._save(event, player)
+        yield event.plain_result(self._with_commands(text, player))
+
+    @filter.command("jy买包", alias={"金庸买包", "购买背囊"})
+    async def cmd_buy_bag(self, event: AstrMessageEvent) -> AsyncGenerator:
+        player, message = self._get_player_or_message(event)
+        if player is None:
+            yield event.plain_result(self._with_commands(message))
+            return
+        parts = event.message_str.strip().split(maxsplit=1)
+        text = buy_backpack(player, parts[1] if len(parts) >= 2 else "")
+        self._save(event, player)
+        yield event.plain_result(self._with_commands(text, player))
+
+    @filter.command("jy装备", alias={"金庸装备", "装备物品"})
+    async def cmd_equip(self, event: AstrMessageEvent) -> AsyncGenerator:
+        player, message = self._get_player_or_message(event)
+        if player is None:
+            yield event.plain_result(self._with_commands(message))
+            return
+        parts = event.message_str.strip().split(maxsplit=1)
+        if len(parts) < 2:
+            yield event.plain_result(self._with_commands("用法：/金庸装备 装备名\n发送 /金庸背包 查看装备。", player))
+            return
+        text = equip_item(player, parts[1])
+        self._save(event, player)
+        yield event.plain_result(self._with_commands(text, player))
+
+    @filter.command("jy技能", alias={"金庸技能", "设置技能"})
+    async def cmd_skill(self, event: AstrMessageEvent) -> AsyncGenerator:
+        player, message = self._get_player_or_message(event)
+        if player is None:
+            yield event.plain_result(self._with_commands(message))
+            return
+        parts = event.message_str.strip().split(maxsplit=1)
+        if len(parts) < 2:
+            yield event.plain_result(self._with_commands("用法：/金庸技能 武学名 或 /金庸技能 自动", player))
+            return
+        text = set_active_skill(player, parts[1])
+        self._save(event, player)
+        yield event.plain_result(self._with_commands(text, player))
+
+    @filter.command("jy局外", alias={"金庸局外", "局外强化"})
+    async def cmd_meta(self, event: AstrMessageEvent) -> AsyncGenerator:
+        meta = self.meta_store.get_player(self._user_id(event)) or {}
+        player = self.store.get_player(self._user_id(event))
+        yield event.plain_result(self._with_commands(meta_text(meta, player), player))
+
+    @filter.command("jy强化", alias={"金庸强化", "局外升级"})
+    async def cmd_upgrade(self, event: AstrMessageEvent) -> AsyncGenerator:
+        player, message = self._get_player_or_message(event)
+        if player is None:
+            yield event.plain_result(self._with_commands(message))
+            return
+        parts = event.message_str.strip().split(maxsplit=1)
+        if len(parts) < 2:
+            yield event.plain_result(self._with_commands("用法：/金庸强化 钓鱼｜背囊｜盘缠｜气血\n发送 /金庸局外 查看强化表。", player))
+            return
+        meta = self.meta_store.get_player(self._user_id(event)) or player.get("meta_progression", {})
+        text, updated_meta = upgrade_meta_progression(player, meta, parts[1])
+        self.meta_store.put_player(self._user_id(event), updated_meta)
+        self._save(event, player)
+        yield event.plain_result(self._with_commands(text, player))
+
+    @filter.command("jy丢弃", alias={"金庸丢弃", "丢弃物品"})
+    async def cmd_discard(self, event: AstrMessageEvent) -> AsyncGenerator:
+        player, message = self._get_player_or_message(event)
+        if player is None:
+            yield event.plain_result(self._with_commands(message))
+            return
+        parts = event.message_str.strip().split()
+        if len(parts) < 2:
+            yield event.plain_result(self._with_commands("用法：/金庸丢弃 物品名 [数量]\n发送 /金庸背包 查看当前物品。", player))
+            return
+        quantity = int(parts[2]) if len(parts) >= 3 and parts[2].isdigit() else 1
+        text = discard_item(player, parts[1], quantity)
+        self._save(event, player)
+        yield event.plain_result(self._with_commands(text, player))
+
+    @filter.command("jy拾取", alias={"金庸拾取", "拾取物品"})
+    async def cmd_pickup(self, event: AstrMessageEvent) -> AsyncGenerator:
+        player, message = self._get_player_or_message(event)
+        if player is None:
+            yield event.plain_result(self._with_commands(message))
+            return
+        parts = event.message_str.strip().split()
+        if len(parts) < 2:
+            yield event.plain_result(self._with_commands("用法：/金庸拾取 物品名 [数量]\n发送 /金庸背包 查看待拾取物品。", player))
+            return
+        quantity = int(parts[2]) if len(parts) >= 3 and parts[2].isdigit() else 1
+        text = pickup_item(player, parts[1], quantity)
+        self._save(event, player)
+        yield event.plain_result(self._with_commands(text, player))
 
     @filter.command("jy重置", alias={"金庸重置", "踢门重置"})
     async def cmd_reset(self, event: AstrMessageEvent) -> AsyncGenerator:
         parts = event.message_str.strip().split()
         if len(parts) < 2 or parts[1].lower() != "confirm":
-            yield event.plain_result("这会删除当前金庸踢门团角色。确认请发送：/jy重置 confirm")
+            player = self.store.get_player(self._user_id(event))
+            yield event.plain_result(self._with_commands("这会删除当前金庸踢门团角色。确认请发送：/金庸重置 confirm", player))
             return
         deleted = self.store.delete_player(self._user_id(event))
-        yield event.plain_result("角色档案已删除，可重新 /jy开局。" if deleted else "当前没有可删除的角色档案。")
+        yield event.plain_result(self._with_commands("角色档案已删除，可重新 /金庸开局。" if deleted else "当前没有可删除的角色档案。"))
