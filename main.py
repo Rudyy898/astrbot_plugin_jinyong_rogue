@@ -12,21 +12,30 @@ from astrbot.core import AstrBotConfig
 from .engine import (
     apply_pending_meta_rewards,
     buy_backpack,
+    buy_merchant_equipment,
+    combat_attack,
+    combat_defend,
+    combat_flee,
     command_hint_text,
     discard_item,
     equip_item,
+    explore_door,
     fish,
+    floor_square_text,
     format_attrs,
     help_text,
     inventory_text,
+    item_detail_text,
     meta_text,
     new_player,
     next_floor,
+    opening_text,
     open_door,
     pickup_item,
     sect_list_text,
     status_text,
     set_active_skill,
+    sell_equipment,
     upgrade_meta_progression,
     use_consumable,
 )
@@ -67,8 +76,21 @@ class JinyongRoguePlugin(Star):
     def _with_commands(self, text: str, player: dict | None = None, scene: str = "tower") -> str:
         return f"{text}\n\n{command_hint_text(player)}"
 
+    def _has_floor_context(self, text: str) -> bool:
+        markers = ("【第", "【武神殿】", "═══ 三道殿门 ═══", "═══ 可为之事 ═══", "探索完毕，你回到了古殿中央。")
+        return any(marker in text for marker in markers)
+
     def _result(self, event: AstrMessageEvent, text: str, player: dict | None = None, scene: str = "tower"):
-        full_text = self._with_commands(text, player, scene)
+        if player is not None and not player.get("in_combat"):
+            if scene == "opening":
+                full_text = self._with_commands(text, player, scene)
+            elif self._has_floor_context(text):
+                full_text = self._with_commands(text, player, scene)
+            else:
+                square_text = floor_square_text(player)
+                full_text = text + "\n\n" + "=" * 30 + "\n\n" + self._with_commands(square_text, player, scene)
+        else:
+            full_text = self._with_commands(text, player, scene)
         card_path = render_card_image(full_text, infer_scene(full_text, scene), self.card_cache_dir)
         if card_path is None:
             return event.plain_result(full_text)
@@ -97,6 +119,18 @@ class JinyongRoguePlugin(Star):
             "/jy踢门": "kick",
             "/金庸踢门": "kick",
             "/踢门": "kick",
+            "/jy攻击": "attack",
+            "/金庸攻击": "attack",
+            "/攻击": "attack",
+            "/jy逃跑": "flee",
+            "/金庸逃跑": "flee",
+            "/逃跑": "flee",
+            "/jy探索": "explore",
+            "/金庸探索": "explore",
+            "/探索门": "explore",
+            "/jy查看": "view",
+            "/金庸查看": "view",
+            "/查看物品": "view",
             "/jy下一层": "next",
             "/金庸下一层": "next",
             "/踢门下一层": "next",
@@ -109,6 +143,12 @@ class JinyongRoguePlugin(Star):
             "/jy买包": "buy_bag",
             "/金庸买包": "buy_bag",
             "/踢门买包": "buy_bag",
+            "/jy购买": "buy_equipment",
+            "/金庸购买": "buy_equipment",
+            "/购买装备": "buy_equipment",
+            "/jy出售": "sell_equipment",
+            "/金庸出售": "sell_equipment",
+            "/出售装备": "sell_equipment",
             "/jy装备": "equip",
             "/金庸装备": "equip",
             "/踢门装备": "equip",
@@ -171,6 +211,12 @@ class JinyongRoguePlugin(Star):
         elif key == "buy_bag":
             async for msg in self.cmd_buy_bag(event):
                 yield msg
+        elif key == "buy_equipment":
+            async for msg in self.cmd_buy_equipment(event):
+                yield msg
+        elif key == "sell_equipment":
+            async for msg in self.cmd_sell_equipment(event):
+                yield msg
         elif key == "equip":
             async for msg in self.cmd_equip(event):
                 yield msg
@@ -194,6 +240,18 @@ class JinyongRoguePlugin(Star):
                 yield msg
         elif key == "reset":
             async for msg in self.cmd_reset(event):
+                yield msg
+        elif key == "attack":
+            async for msg in self.cmd_attack(event):
+                yield msg
+        elif key == "flee":
+            async for msg in self.cmd_flee(event):
+                yield msg
+        elif key == "explore":
+            async for msg in self.cmd_explore(event):
+                yield msg
+        elif key == "view":
+            async for msg in self.cmd_view_item(event):
                 yield msg
         event.stop_event()
 
@@ -230,14 +288,7 @@ class JinyongRoguePlugin(Star):
         meta = self.meta_store.get_player(self._user_id(event)) or {}
         player = new_player(self._user_id(event), self._nickname(event), sect_name, difficulty, meta)
         self._save(event, player)
-        sect = SECTS[sect_name]
-        yield self._result(event,
-            f"开局成功：{sect_name}（{sect.camp}）｜难度：{difficulty}\n"
-            f"属性：{format_attrs(sect_name)}\n"
-            f"初始武学：{'、'.join(sect.skills)}\n"
-            "发送 /金庸踢门 开启第1层第1个事件门。",
-            player,
-        )
+        yield self._result(event, opening_text(player, sect_name), player, scene="opening")
 
     @filter.command("jy状态", alias={"金庸状态", "踢门状态"})
     async def cmd_status(self, event: AstrMessageEvent) -> AsyncGenerator:
@@ -253,7 +304,12 @@ class JinyongRoguePlugin(Star):
         if player is None:
             yield self._result(event, message)
             return
-        text = open_door(player)
+        if player.get("in_combat"):
+            yield self._result(event, "战斗中！请先使用 /金庸攻击 或 /金庸逃跑。", player)
+            return
+        parts = event.message_str.strip().split()
+        door_num = int(parts[1]) if len(parts) >= 2 and parts[1].isdigit() else 0
+        text = open_door(player, door_num)
         meta, meta_line = apply_pending_meta_rewards(self.meta_store.get_player(self._user_id(event)) or {}, player)
         if meta_line:
             self.meta_store.put_player(self._user_id(event), meta)
@@ -291,7 +347,7 @@ class JinyongRoguePlugin(Star):
         self._save(event, player)
         yield self._result(event, text, player)
 
-    @filter.command("jy使用", alias={"金庸使用", "使用鱼获"})
+    @filter.command("jy使用", alias={"金庸使用", "使用鱼获", "使用药品"})
     async def cmd_use(self, event: AstrMessageEvent) -> AsyncGenerator:
         player, message = self._get_player_or_message(event)
         if player is None:
@@ -299,7 +355,7 @@ class JinyongRoguePlugin(Star):
             return
         parts = event.message_str.strip().split(maxsplit=1)
         if len(parts) < 2:
-            yield self._result(event, "用法：/金庸使用 鱼获名\n发送 /金庸状态 查看当前鱼获消耗品。", player)
+            yield self._result(event, "用法：/金庸使用 药品名或鱼获名\n发送 /金庸背包 查看当前药品与鱼获消耗品。", player)
             return
         text = use_consumable(player, parts[1])
         self._save(event, player)
@@ -323,6 +379,35 @@ class JinyongRoguePlugin(Star):
             return
         parts = event.message_str.strip().split(maxsplit=1)
         text = buy_backpack(player, parts[1] if len(parts) >= 2 else "")
+        self._save(event, player)
+        yield self._result(event, text, player)
+
+    @filter.command("jy购买", alias={"金庸购买", "购买装备"})
+    async def cmd_buy_equipment(self, event: AstrMessageEvent) -> AsyncGenerator:
+        player, message = self._get_player_or_message(event)
+        if player is None:
+            yield self._result(event, message)
+            return
+        parts = event.message_str.strip().split(maxsplit=1)
+        if len(parts) < 2:
+            yield self._result(event, "用法：/金庸购买 装备名\n需要先在商人门看到装备报价。", player)
+            return
+        text = buy_merchant_equipment(player, parts[1])
+        self._save(event, player)
+        yield self._result(event, text, player)
+
+    @filter.command("jy出售", alias={"金庸出售", "出售装备"})
+    async def cmd_sell_equipment(self, event: AstrMessageEvent) -> AsyncGenerator:
+        player, message = self._get_player_or_message(event)
+        if player is None:
+            yield self._result(event, message)
+            return
+        parts = event.message_str.strip().split()
+        if len(parts) < 2:
+            yield self._result(event, "用法：/金庸出售 装备名 [数量]\n需要在商人门出售，且只能出售背包中未装备的装备。", player)
+            return
+        quantity = int(parts[2]) if len(parts) >= 3 and parts[2].isdigit() else 1
+        text = sell_equipment(player, parts[1], quantity)
         self._save(event, player)
         yield self._result(event, text, player)
 
@@ -404,6 +489,72 @@ class JinyongRoguePlugin(Star):
         quantity = int(parts[2]) if len(parts) >= 3 and parts[2].isdigit() else 1
         text = pickup_item(player, parts[1], quantity)
         self._save(event, player)
+        yield self._result(event, text, player)
+
+    @filter.command("jy攻击", alias={"金庸攻击", "攻击"})
+    async def cmd_attack(self, event: AstrMessageEvent) -> AsyncGenerator:
+        player, message = self._get_player_or_message(event)
+        if player is None:
+            yield self._result(event, message)
+            return
+        if not player.get("in_combat"):
+            yield self._result(event, "你当前不在战斗中。发送 /金庸踢门 门号 开始冒险。", player)
+            return
+        parts = event.message_str.strip().split()
+        skill_name = parts[1] if len(parts) >= 2 else ""
+        text = combat_attack(player, skill_name)
+        self._save(event, player)
+        yield self._result(event, text, player)
+
+    @filter.command("jy逃跑", alias={"金庸逃跑", "逃跑"})
+    async def cmd_flee(self, event: AstrMessageEvent) -> AsyncGenerator:
+        player, message = self._get_player_or_message(event)
+        if player is None:
+            yield self._result(event, message)
+            return
+        text = combat_flee(player)
+        self._save(event, player)
+        yield self._result(event, text, player)
+
+    @filter.command("jy防御", alias={"金庸防御", "防御"})
+    async def cmd_defend(self, event: AstrMessageEvent) -> AsyncGenerator:
+        player, message = self._get_player_or_message(event)
+        if player is None:
+            yield self._result(event, message)
+            return
+        if not player.get("in_combat"):
+            yield self._result(event, "你当前不在战斗中。发送 /金庸踢门 门号 开始冒险。", player)
+            return
+        text = combat_defend(player)
+        self._save(event, player)
+        yield self._result(event, text, player)
+
+    @filter.command("jy探索", alias={"金庸探索", "探索门"})
+    async def cmd_explore(self, event: AstrMessageEvent) -> AsyncGenerator:
+        player, message = self._get_player_or_message(event)
+        if player is None:
+            yield self._result(event, message)
+            return
+        parts = event.message_str.strip().split()
+        if len(parts) < 2 or not parts[1].isdigit():
+            yield self._result(event, "用法：/金庸探索 门号\n探索已通关的门，可能有意外收获。", player)
+            return
+        door_num = int(parts[1])
+        text = explore_door(player, door_num)
+        self._save(event, player)
+        yield self._result(event, text, player)
+
+    @filter.command("jy查看", alias={"金庸查看", "查看物品"})
+    async def cmd_view_item(self, event: AstrMessageEvent) -> AsyncGenerator:
+        player, message = self._get_player_or_message(event)
+        if player is None:
+            yield self._result(event, message)
+            return
+        parts = event.message_str.strip().split(maxsplit=1)
+        if len(parts) < 2:
+            yield self._result(event, "用法：/金庸查看 物品名\n查看物品的详细描述和效果。", player)
+            return
+        text = item_detail_text(parts[1], player)
         yield self._result(event, text, player)
 
     @filter.command("jy重置", alias={"金庸重置", "踢门重置"})

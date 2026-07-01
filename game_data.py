@@ -93,7 +93,7 @@ PLAYER_START_ROWS = (
     {"key": "mp_base", "value": 8},
     {"key": "mp_per_int", "value": 1},
     {"key": "silver", "value": 60},
-    {"key": "supplies", "value": 2},
+    {"key": "starting_medicine", "value": 2},
 )
 PLAYER_START = {row["key"]: int(row["value"]) for row in PLAYER_START_ROWS}
 
@@ -119,19 +119,19 @@ EVENT_WEIGHTS = tuple((row["event_id"], int(row["weight"])) for row in ENCOUNTER
 
 ENCOUNTER_RULE_ROWS = (
     {"event_id": "battle", "enemy_hp_base": 12, "enemy_hp_per_floor": 5, "success_silver_dice": "1d11+7", "success_silver_per_floor": 2, "success_materials": 1, "fail_damage_dice": "1d7+3", "fail_damage_per_floor": 1, "fail_silver_dice": "1d7+1"},
-    {"event_id": "chest", "success_silver_dice": "1d19+11", "success_silver_per_floor": 3, "success_supplies": 1, "fumble_damage_dice": "1d6+2"},
+    {"event_id": "chest", "success_silver_dice": "1d19+11", "success_silver_per_floor": 3, "success_medicine": 1, "fumble_damage_dice": "1d6+2"},
     {"event_id": "encounter", "success_materials": 2, "success_mp_recovery": 2},
     {"event_id": "trap", "success_silver": 10, "fail_damage_dice": "1d8+4"},
-    {"event_id": "merchant", "base_cost": 20, "success_discount": 10, "min_cost": 8, "buy_supplies": 2, "backpack_discount_percent_success": 10},
+    {"event_id": "merchant", "base_cost": 20, "success_discount": 10, "min_cost": 8, "buy_medicine": 2, "backpack_discount_percent_success": 10},
 )
 ENCOUNTER_RULES = {row["event_id"]: row for row in ENCOUNTER_RULE_ROWS}
 
 
 SECT_ENCOUNTER_RULE_ROWS = (
-    {"outcome": "crit", "fragment_tier": "ultimate", "supplies_delta": 1, "materials_delta": 2, "next_door_dc_delta": 0},
-    {"outcome": "success", "fragment_tier": "advanced", "supplies_delta": 1, "materials_delta": 0, "next_door_dc_delta": 0},
-    {"outcome": "fumble_with_supply", "fragment_tier": "", "supplies_delta": -1, "materials_delta": 0, "next_door_dc_delta": 0},
-    {"outcome": "fumble_without_supply", "fragment_tier": "", "supplies_delta": 0, "materials_delta": 0, "next_door_dc_delta": 1},
+    {"outcome": "crit", "fragment_tier": "ultimate", "medicine_delta": 1, "materials_delta": 2, "next_door_dc_delta": 0},
+    {"outcome": "success", "fragment_tier": "advanced", "medicine_delta": 1, "materials_delta": 0, "next_door_dc_delta": 0},
+    {"outcome": "fumble_with_medicine", "fragment_tier": "", "medicine_delta": -1, "materials_delta": 0, "next_door_dc_delta": 0},
+    {"outcome": "fumble_without_medicine", "fragment_tier": "", "medicine_delta": 0, "materials_delta": 0, "next_door_dc_delta": 1},
 )
 SECT_ENCOUNTER_RULES = {row["outcome"]: row for row in SECT_ENCOUNTER_RULE_ROWS}
 
@@ -273,8 +273,21 @@ EQUIPMENT_BY_ID = {row["item_id"]: row for row in EQUIPMENT_ROWS}
 EQUIPMENT_BY_NAME = {row["name"]: row for row in EQUIPMENT_ROWS}
 
 
+ENEMY_ROWS = (
+    {"enemy_id": "tower_guard_1", "name": "守塔武师", "floor": 1, "hp": 18, "ac": 12, "attack_bonus": 2, "damage_dice": "1d6+1", "damage_type": "钝击", "desc": "第一层守塔弟子，武艺平平但意志坚定。"},
+    {"enemy_id": "tower_guard_2", "name": "护院教头", "floor": 2, "hp": 24, "ac": 13, "attack_bonus": 3, "damage_dice": "1d6+2", "damage_type": "钝击", "desc": "第二层护院教头，一手铁布衫已有小成。"},
+    {"enemy_id": "tower_guard_3", "name": "铜人僧", "floor": 3, "hp": 30, "ac": 14, "attack_bonus": 3, "damage_dice": "1d8+2", "damage_type": "钝击", "desc": "第三层金刚铜人，拳拳到肉，刚猛无俦。"},
+    {"enemy_id": "tower_guard_4", "name": "飞剑客", "floor": 4, "hp": 28, "ac": 15, "attack_bonus": 4, "damage_dice": "1d6+3", "damage_type": "穿刺", "desc": "第四层飞剑客，出手快如闪电，剑未到气先至。"},
+    {"enemy_id": "tower_guard_5", "name": "毒砂掌客", "floor": 5, "hp": 35, "ac": 14, "attack_bonus": 4, "damage_dice": "1d8+2", "damage_type": "毒", "desc": "第五层毒道高手，掌风含毒，触之即伤。"},
+    {"enemy_id": "tower_guard_6", "name": "修罗刀使", "floor": 6, "hp": 42, "ac": 16, "attack_bonus": 5, "damage_dice": "1d10+3", "damage_type": "劈砍", "desc": "第六层修罗刀使，刀法狠辣，每一击皆有进无退。"},
+)
+ENEMIES = {row["enemy_id"]: row for row in ENEMY_ROWS}
+ENEMIES_BY_FLOOR = {}
+for row in ENEMY_ROWS:
+    ENEMIES_BY_FLOOR.setdefault(row["floor"], []).append(row)
+
 BOSS_ROWS = (
-    {"boss_id": "wushen_mirror", "name": "武神镜像", "floor": 7, "hp": 70, "ac": 19, "check_dc": 18, "fail_damage_dice": "1d11+11", "ultimate_drop_chance": 10},
+    {"boss_id": "wushen_mirror", "name": "武神镜像", "floor": 7, "hp": 70, "ac": 19, "attack_bonus": 7, "damage_dice": "1d12+5", "damage_type": "钝击", "check_dc": 18, "fail_damage_dice": "1d11+11", "ultimate_drop_chance": 10, "desc": "武道极致的投影，集百家武学于一身的终极试炼。"},
 )
 BOSSES = {row["boss_id"]: row for row in BOSS_ROWS}
 
@@ -337,7 +350,7 @@ META_UPGRADE_ALIASES = {
 INVENTORY_POLICY_ROWS = (
     {"category": "currency", "examples": "碎银", "in_bag": False, "slot_rule": "货币不占背包格"},
     {"category": "progression", "examples": "武学素材、武道真髓、武学残卷、武学残页", "in_bag": False, "slot_rule": "进度资源不占背包格"},
-    {"category": "abstract_supply", "examples": "补给、小还丹", "in_bag": False, "slot_rule": "旧规则抽象补给不占背包格"},
+    {"category": "medicine_consumable", "examples": "金疮药、小还丹", "in_bag": True, "slot_rule": "药品消耗品进入背囊，可用 /金庸使用 药品名"},
     {"category": "fish_consumable", "examples": "鱼获消耗品", "in_bag": True, "slot_rule": "按stack_size堆叠，占用ceil(quantity/stack_size)*slot_size格"},
     {"category": "backpack", "examples": "青布行囊、牛皮百纳囊、锦缎乾坤囊、乾坤一气袋", "in_bag": False, "slot_rule": "已装备背囊不占自身格数"},
 )
@@ -352,22 +365,30 @@ FISHING_POOLS = {row["pool_id"]: row for row in FISHING_POOL_ROWS}
 
 
 BAIT_ROWS = (
-    {"bait_id": "worm", "name": "普通蚯蚓饵", "price": 10, "loot_roll_bonus": 0, "advantage_rolls": 1, "description": "基础钓饵，不提供品质修正。"},
-    {"bait_id": "spiced", "name": "秘制香饵", "price": 30, "loot_roll_bonus": 8, "advantage_rolls": 1, "description": "稳定提升鱼获品质，d100鱼获判定获得+8品质修正。"},
-    {"bait_id": "dragon_musk", "name": "龙涎香饵", "price": 100, "loot_roll_bonus": 15, "advantage_rolls": 2, "description": "高阶钓饵，d100鱼获判定取优势并获得+15品质修正。"},
+    {"bait_id": "worm", "name": "普通蚯蚓饵", "price": 0, "loot_roll_bonus": 0, "advantage_rolls": 1, "description": "基础钓饵，不消耗碎银，不提供品质修正。"},
+    {"bait_id": "spiced", "name": "秘制香饵", "price": 0, "loot_roll_bonus": 8, "advantage_rolls": 1, "description": "稳定提升鱼获品质，d100鱼获判定获得+8品质修正。"},
+    {"bait_id": "dragon_musk", "name": "龙涎香饵", "price": 0, "loot_roll_bonus": 15, "advantage_rolls": 2, "description": "高阶钓饵，d100鱼获判定取优势并获得+15品质修正。"},
 )
 BAITS = {row["name"]: row for row in BAIT_ROWS}
 
 
 FISH_CONSUMABLE_ROWS = (
-    {"item_id": "river_carp", "name": "青鳞溪鲤", "rarity": "common", "item_type": "fish_consumable", "stack_size": 5, "slot_size": 1, "droppable": True, "usable": True, "effect_type": "hp_recovery", "effect_dice": "1d6", "effect_value": 2, "duration": "instant", "description": "食用后回复1d6+2点HP。"},
-    {"item_id": "silver_fin_carp", "name": "银鳍灵鲤", "rarity": "uncommon", "item_type": "fish_consumable", "stack_size": 5, "slot_size": 1, "droppable": True, "usable": True, "effect_type": "mp_recovery", "effect_dice": "1d4", "effect_value": 2, "duration": "instant", "description": "食用后回复1d4+2点MP。"},
-    {"item_id": "cold_jade_perch", "name": "寒潭玉鲈", "rarity": "rare", "item_type": "fish_consumable", "stack_size": 3, "slot_size": 1, "droppable": True, "usable": True, "effect_type": "temp_hp", "effect_dice": "1d8", "effect_value": 4, "duration": "next_battle", "description": "食用后获得1d8+4点临时HP。"},
-    {"item_id": "ironbone_catfish", "name": "铁骨鲶", "rarity": "epic", "item_type": "fish_consumable", "stack_size": 2, "slot_size": 1, "droppable": True, "usable": True, "effect_type": "next_d20_bonus", "effect_dice": "", "effect_value": 2, "duration": "next_check", "description": "食用后下一次d20检定获得+2加值。"},
-    {"item_id": "dragon_whisker_fish", "name": "龙须金鳞鱼", "rarity": "legendary", "item_type": "fish_consumable", "stack_size": 1, "slot_size": 1, "droppable": True, "usable": True, "effect_type": "hp_recovery", "effect_dice": "2d8", "effect_value": 8, "duration": "instant", "description": "食用后回复2d8+8点HP。"},
+    {"item_id": "river_carp", "name": "青鳞溪鲤", "rarity": "common", "item_type": "fish_consumable", "stack_size": 5, "slot_size": 1, "droppable": True, "usable": True, "effect_type": "hp_recovery", "effect_dice": "1d6", "effect_value": 2, "duration": "instant", "description": "溪水灵气养出的青鳞鲤，肉质温润，食用后回复1d6+2点HP。"},
+    {"item_id": "silver_fin_carp", "name": "银鳍灵鲤", "rarity": "uncommon", "item_type": "fish_consumable", "stack_size": 5, "slot_size": 1, "droppable": True, "usable": True, "effect_type": "mp_recovery", "effect_dice": "1d4", "effect_value": 2, "duration": "instant", "description": "银鳍上凝着淡淡月华，入口清凉，食用后回复1d4+2点MP。"},
+    {"item_id": "cold_jade_perch", "name": "寒潭玉鲈", "rarity": "rare", "item_type": "fish_consumable", "stack_size": 3, "slot_size": 1, "droppable": True, "usable": True, "effect_type": "temp_hp", "effect_dice": "1d8", "effect_value": 4, "duration": "next_battle", "description": "寒潭深处的玉色灵鱼，鱼肉蕴着护体寒劲，食用后获得1d8+4点临时HP。"},
+    {"item_id": "ironbone_catfish", "name": "铁骨鲶", "rarity": "epic", "item_type": "fish_consumable", "stack_size": 2, "slot_size": 1, "droppable": True, "usable": True, "effect_type": "next_d20_bonus", "effect_dice": "", "effect_value": 2, "duration": "next_check", "description": "鱼骨坚如精铁，嚼下后筋骨微热，下一次d20检定获得+2加值。"},
+    {"item_id": "dragon_whisker_fish", "name": "龙须金鳞鱼", "rarity": "legendary", "item_type": "fish_consumable", "stack_size": 1, "slot_size": 1, "droppable": True, "usable": True, "effect_type": "hp_recovery", "effect_dice": "2d8", "effect_value": 8, "duration": "instant", "description": "金鳞如火、龙须微动的奇鱼，食用后真气奔涌，回复2d8+8点HP。"},
 )
 FISH_CONSUMABLES = {row["item_id"]: row for row in FISH_CONSUMABLE_ROWS}
 FISH_CONSUMABLES_BY_NAME = {row["name"]: row for row in FISH_CONSUMABLE_ROWS}
+
+
+MEDICINE_CONSUMABLE_ROWS = (
+    {"item_id": "jinchuang_ointment", "name": "金疮药", "rarity": "common", "item_type": "medicine_consumable", "stack_size": 5, "slot_size": 1, "droppable": True, "usable": True, "effect_type": "hp_recovery", "effect_dice": "1d8", "effect_value": 4, "duration": "instant", "description": "江湖行走必备的外伤药，敷上后止血生肌，回复1d8+4点HP。"},
+    {"item_id": "shaolin_small_elixir", "name": "小还丹", "rarity": "rare", "item_type": "medicine_consumable", "stack_size": 3, "slot_size": 1, "droppable": True, "usable": True, "effect_type": "hp_recovery", "effect_dice": "2d6", "effect_value": 6, "duration": "instant", "description": "少林密制丹药，丹香沉稳，服下可回护心脉，回复2d6+6点HP。"},
+)
+MEDICINE_CONSUMABLES = {row["item_id"]: row for row in MEDICINE_CONSUMABLE_ROWS}
+MEDICINE_CONSUMABLES_BY_NAME = {row["name"]: row for row in MEDICINE_CONSUMABLE_ROWS}
 
 
 FISHING_LOOT_ROWS = (
@@ -377,3 +398,104 @@ FISHING_LOOT_ROWS = (
     {"loot_tier": "uncommon", "roll_min": 26, "roll_max": 45, "item_id": "silver_fin_carp", "quantity": 1},
     {"loot_tier": "common", "roll_min": 46, "roll_max": 100, "item_id": "river_carp", "quantity": 1},
 )
+
+DOOR_TYPE_HINTS = {
+    "battle": {"title": "战", "subtitle": "金戈铁马", "color": "#b84a3a", "flavor": "门后传来兵器交击之声，杀气腾腾..."},
+    "chest": {"title": "宝", "subtitle": "奇珍异宝", "color": "#c58a2c", "flavor": "门缝中透出淡淡宝光，似有珍稀之物藏于其内..."},
+    "encounter": {"title": "缘", "subtitle": "机缘巧合", "color": "#6f9f7a", "flavor": "门内仙气缭绕，或有高人在此等候..."},
+    "trap": {"title": "险", "subtitle": "危机四伏", "color": "#6f986d", "flavor": "此门阴气森森，机关暗伏，步步惊心..."},
+    "merchant": {"title": "商", "subtitle": "江湖货郎", "color": "#b77a3d", "flavor": "听到算盘清脆声响，想来是游商在此歇息..."},
+}
+
+FLOOR_FLAVOR = {
+    1: "初入武道塔，四周青砖古壁，空气中弥漫着淡淡的檀香。",
+    2: "拾级而上，风声渐起，远处似有剑鸣铿锵。",
+    3: "三层已入云端，脚下云海翻腾，心神为之一振。",
+    4: "四层煞气渐浓，石壁之上隐现刀刻剑痕。",
+    5: "五层罡风呼啸，真气运转竟有凝滞之感。",
+    6: "将近顶层，威压如山，每一步都需运功抵抗。",
+    7: "武神殿金光万丈，武神镜像端坐中央，等待挑战者到来。",
+}
+
+COMBAT_FLAVOR = {
+    "player_hit": [
+        "你的招式如行云流水，正中对手！",
+        "这一招虚实相生，敌人避无可避！",
+        "招式用老，劲力吐透，正中敌身！",
+        "你身形一晃，寻得破绽，一击得手！",
+    ],
+    "player_crit": [
+        "自然二十！这一招有如神助，势如雷霆万钧！",
+        "破绽！你觑准时机，全力一击，直取要害！",
+        "天意如此！这一击竟蕴合天地至理，威力倍增！",
+    ],
+    "player_miss": [
+        "敌人早有防备，侧身避开，你的招式落空。",
+        "这招虽快，却被敌人以巧劲卸开。",
+        "敌手身法诡异，你的攻击擦身而过！",
+    ],
+    "enemy_hit": [
+        "敌手反击迅猛，你闪避不及，中招！",
+        "敌人招式老辣，你护得心门，却仍被余劲所伤。",
+        "这一击来得好快！你闷哼一声，连退数步。",
+    ],
+    "enemy_miss": [
+        "你脚下奇门步法施展，堪堪避开这一击。",
+        "敌人招式虽猛，却被你以柔劲化解于无形。",
+        "早有防备！你横移三尺，避其锋芒。",
+    ],
+    "victory": [
+        "胜了！你长舒一口气，真气运转一周天。",
+        "敌手颓然倒地，你立于当场，衣袂飘飘。",
+        "此战虽险，却也印证了你的武道进境！",
+    ],
+}
+
+EVENT_FLAVOR = {
+    "chest_open": "你小心翼翼推开宝箱，金光洒落——",
+    "chest_trap": "咔嚓！机关触发之声入耳，暗弩激射而出！",
+    "merchant_greet": "一位面容清癯的老者抬眼笑道：贵客临门，可有中意之物？",
+    "encounter_wise": "一位白发高人缓缓睁眼：孺子可教，且听我道来——",
+    "trap_dodge": "机括声响的刹那，你纵身跃起，险之又险避开！",
+}
+
+ITEM_DESC = {
+    "金疮药": "武林常备伤药，外敷内服，可止血生肌。",
+    "小还丹": "少林密制丹药，辅以数十种名贵药材，服用后可回护心脉。",
+    "大还丹": "传说中的圣药，生死人肉白骨，乃武林中人梦寐以求之物。",
+    "武学素材": "修习进阶武学所需的通用材料，可从战斗、奇遇等事件中获得。",
+    "武道真髓": "通关后凝聚的局外修行资源，用于提升局外强化等级。",
+    "武学残卷": "通关后获得的残破典籍，可与武道真髓一起投入局外强化。",
+    "中阶武学残页": "记录各门派中阶武学心得的残页，可推动门派武学领悟。",
+    "顶级绝学残页": "极罕见的绝学残页，记载门派顶级武学的关键心法。",
+}
+
+EQUIPMENT_DESC = {
+    "精铁长剑": "精铁打造的长剑，虽非神兵，却也锋利耐用。",
+    "青竹杖": "以老竹烘制而成，杖身轻韧，适合点穴、格挡与行路。",
+    "青钢剑": "掺以玄铁的青钢所铸，剑刃泛着幽蓝冷光。",
+    "精铁禅杖": "少林匠坊常见重兵，杖头厚重，挥动时风声沉闷。",
+    "朱漆酒葫芦": "丐帮弟子随身酒葫芦，朱漆斑驳，能提气暖身。",
+    "软猬内甲仿品": "仿照桃花岛软猬甲所制，虽无反伤奇效，却也能护体防身。",
+    "侠士披风": "江湖侠客常披的厚布披风，可挡风沙，也能遮掩身形。",
+    "锁子软甲": "细密铁环缀成的贴身软甲，沉稳可靠，防护优于布甲。",
+    "虎爪护手": "护手前端嵌有短刃，近身搏杀时尤为凶狠。",
+    "银针匣": "峨眉医武常用暗器匣，银针细密，出手隐蔽而精准。",
+    "避毒香囊": "囊中药香清冽，可压制毒瘴，也能让兵刃多一分辛辣毒意。",
+    "温玉佩": "温润古玉贴身而佩，行气活血，能稍增气血根基。",
+    "紫绶剑穗": "名门剑客喜用剑穗，既稳剑势，也便于蓄劲发招。",
+    "碧玉箫": "玉质清凉，既可吹奏扰敌，也可作奇门短兵防身。",
+    "紫金束带": "以紫金丝线编成，束身聚气，攻守皆有助益。",
+    "雪蚕袍": "以极北雪蚕丝织就，轻如鸿毛，刀枪难入。",
+    "金丝背心": "金丝密织的贴身背心，护住心脉，尤其擅长保命。",
+    "寒铁剑": "寒铁锻成的利剑，剑气清冷，出鞘时寒意逼人。",
+    "血纹戒刀": "刀身有暗红血纹，劈斩沉猛，带着血刀门式的狠辣。",
+    "玄铁短刃": "玄铁残料打造的短刃，锋芒内敛，适合贴身突袭。",
+    "玄铁护腕": "沉重玄铁护腕，既能格挡，也能让出手更具分量。",
+    "龙纹令佩": "刻有龙纹的古旧令佩，传闻可镇心神、聚真气。",
+    "软金甲": "软金丝编成的护甲，轻薄柔韧，能化开大半冲击。",
+    "君子剑": "剑身端正清亮，重在准与稳，适合正面破敌。",
+    "淑女剑": "剑形轻灵秀雅，出招迅疾，适合连刺与奇袭。",
+    "玄铁重剑仿品": "仿照神雕大侠玄铁重剑形制，入手沉重，威力惊人。",
+    "九阳暖玉": "蕴有温热真意的古玉，佩之如怀小日，可护体回阳。",
+}
