@@ -2,3 +2,7 @@ __pycache__/
 *.pyc
 .DS_Store
 data/
+.claude/
+.agents/skills/byted-ark-seedream-skill/
+assets/backgrounds/backup/
+skills-lock.json

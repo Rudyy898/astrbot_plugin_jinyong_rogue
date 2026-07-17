@@ -5,6 +5,141 @@ import re
 from pathlib import Path
 from uuid import uuid4
 
+try:
+    from PIL import Image, ImageDraw, ImageFont
+except Exception:
+    Image = ImageDraw = ImageFont = None
+
+# Sect basic skills mapping: {sect_name: {skill_name: mp_cost}}
+SECT_BASIC_SKILLS = {
+    "少林": {"罗汉拳": 0, "金刚掌": 0, "大韦陀杵": 1},
+    "武当": {"太极拳": 0, "太极剑": 1, "武当长拳": 0},
+    "峨眉": {"峨眉剑法": 0, "峨嵋九阳功": 1, "金顶绵掌": 0},
+    "全真": {"全真剑法": 0, "先天功": 1, "昊天掌": 0},
+    "华山": {"华山长拳": 0, "华山剑法": 1, "养气诀": 0},
+    "丐帮": {"降龙十八掌基础式": 1, "打狗棒法": 1, "太祖长拳": 0},
+    "明教": {"圣火令法": 1, "乾坤大挪移残篇": 1, "大九天手": 0},
+    "青城": {"青城剑法": 0, "催心掌": 1, "松风剑法": 1},
+    "雪山派": {"雪山剑法": 1, "寒冰神掌": 1, "金乌刀法": 1},
+    "大理段氏": {"一阳指初阶": 1, "段家剑法": 0, "段氏吐纳法": 0},
+    "逍遥派": {"天山折梅手": 1, "北冥吐纳法": 0, "凌波微步初阶": 0},
+    "金刚宗": {"金刚拳初阶": 1, "火焰刀初阶": 1, "大手印": 0},
+    "桃花岛": {"落英神剑掌": 1, "弹指神通": 1, "玉箫剑法": 0},
+    "日月神教": {"葵花宝典残篇": 1, "吸星大法": 1, "日月神剑": 0},
+    "血刀门": {"血刀刀法初阶": 1, "嗜血心法": 1, "血洗山河": 2},
+    "白驼山庄": {"白驼蛇毒掌": 1, "蛤蟆功初阶": 1, "灵蛇拳法": 0},
+}
+
+# Real skill MP cost data from SKILL_COMBAT_ROWS and MARTIAL_ART_SKILL_ROWS
+SKILL_MP_COST = {
+    # === 基础武学 (SKILL_COMBAT_ROWS) ===
+    # 少林
+    "罗汉拳": 0,
+    "易筋经残篇": 1,
+    # 武当
+    "太极拳": 0,
+    "太极剑": 1,
+    # 峨眉
+    "峨眉剑法": 0,
+    "峨嵋九阳功": 1,
+    # 全真
+    "全真剑法": 0,
+    "先天功": 1,
+    # 华山
+    "华山长拳": 0,
+    "华山剑法": 1,
+    "养气诀": 0,
+    # 丐帮
+    "降龙十八掌基础式": 1,
+    "打狗棒法": 1,
+    # 明教
+    "乾坤大挪移残篇": 1,
+    "圣火令法": 1,
+    # 青城
+    "青城剑法": 0,
+    "催心掌": 1,
+    # 雪山派
+    "雪山剑法": 1,
+    "寒冰神掌": 1,
+    # 大理段氏
+    "一阳指初阶": 1,
+    "段家剑法": 0,
+    "段氏吐纳法": 0,
+    # 逍遥派
+    "天山折梅手": 1,
+    "北冥吐纳法": 0,
+    "凌波微步初阶": 0,
+    # 金刚宗
+    "金刚拳初阶": 1,
+    "火焰刀初阶": 1,
+    # 桃花岛
+    "落英神剑掌": 1,
+    "弹指神通": 1,
+    # 日月神教
+    "葵花宝典残篇": 1,
+    "吸星大法": 1,
+    # 血刀门
+    "血刀刀法初阶": 1,
+    "嗜血心法": 1,
+    "血洗山河": 2,
+    # 白驼山庄
+    "白驼蛇毒掌": 1,
+    "蛤蟆功初阶": 1,
+
+    # === 进阶武学 (MARTIAL_ART_SKILL_ROWS - 全部 MP=2 或 3) ===
+    # 华山
+    "狂风快剑": 2,
+    "夺命连环三仙剑": 3,
+    # 少林
+    "大金刚拳": 2,
+    "袈裟伏魔功": 2,
+    # 武当
+    "绕指柔剑": 2,
+    "震山铁掌": 2,
+    # 峨眉
+    "金顶绵掌": 2,
+    "灭剑绝式": 2,
+    # 全真
+    "三花聚顶掌": 2,
+    "七星剑式": 2,
+    # 丐帮
+    "亢龙初式": 3,
+    "缠字诀棒法": 2,
+    # 明教
+    "烈焰圣火掌": 2,
+    "乾坤挪劲": 2,
+    # 青城
+    "松风快剑": 2,
+    "摧心毒掌": 2,
+    # 雪山派
+    "雪影连环剑": 2,
+    "冰魄神掌": 2,
+    # 大理段氏
+    "一阳指中阶": 2,
+    "段氏连环剑": 2,
+    # 逍遥派
+    "天山六阳掌初悟": 2,
+    "凌波错影击": 2,
+    # 金刚宗
+    "大力金刚指": 3,
+    "炽焰刀气": 2,
+    # 桃花岛
+    "落英缤纷掌": 2,
+    "玉箫剑式": 2,
+    # 日月神教
+    "葵花迷影刺": 2,
+    "吸星缠劲": 2,
+    # 血刀门
+    "血刀连斩": 3,
+    "血影追魂": 2,
+    # 白驼山庄
+    "白驼毒砂掌": 2,
+    "蛤蟆吐劲": 3,
+}
+
+# Merge all basic sect skills into SKILL_MP_COST
+for sect_skills in SECT_BASIC_SKILLS.values():
+    SKILL_MP_COST.update(sect_skills)
 
 ASSET_DIR = Path(__file__).resolve().parent / "assets" / "backgrounds"
 
@@ -20,9 +155,9 @@ SCENE_META = {
     "meta": {"title": "⭐ 局外修行", "bg": "meta.jpg", "accent": (130, 160, 200)},
     "status": {"title": "👤 侠客状态", "bg": "status.jpg", "accent": (130, 160, 200)},
     "combat": {"title": "⚔️ 刀光剑影", "bg": "battle.jpg", "accent": (220, 70, 70)},
-    "tower": {"title": "🏯 武道塔", "bg": "tower.jpg", "accent": (130, 160, 200)},
+    "tower": {"title": "🏯 武神塔", "bg": "tower.jpg", "accent": (130, 160, 200)},
     "floor_square": {"title": "🏛️ 古武殿", "bg": "floor_square.jpg", "accent": (180, 150, 100)},
-    "opening": {"title": "🏯 武道塔 · 缘起", "bg": "tower.jpg", "accent": (200, 170, 120)},
+    "opening": {"title": "🏯 武神塔 · 缘起", "bg": "tower.jpg", "accent": (200, 170, 120)},
 }
 
 
@@ -34,14 +169,14 @@ def infer_scene(text: str, fallback: str = "tower") -> str:
         ("【宝箱门】", "chest"),
         ("【奇遇门】", "encounter"),
         ("【陷阱门】", "trap"),
+        ("【背包】", "inventory"),
         ("【商人门】", "merchant"),
         ("【钓鱼】", "fishing"),
         ("【武神殿】", "boss"),
-        ("【背包】", "inventory"),
         ("【局外强化】", "meta"),
         ("【金庸踢门团】", "status"),
         ("【古武殿】", "floor_square"),
-        ("【武道塔】", "opening"),
+        ("【武神塔】", "opening"),
         ("· 古武殿", "floor_square"),
         ("层 · ", "floor_square"),
     )
@@ -51,10 +186,8 @@ def infer_scene(text: str, fallback: str = "tower") -> str:
     return fallback
 
 
-def render_card_image(text: str, scene: str, output_dir: Path) -> Path | None:
-    try:
-        from PIL import Image, ImageDraw, ImageFont
-    except Exception:
+def render_card_image(text: str, scene: str, output_dir: Path, player: dict | None = None) -> Path | None:
+    if Image is None or ImageDraw is None or ImageFont is None:
         return None
 
     scene = scene if scene in SCENE_META else "tower"
@@ -62,37 +195,57 @@ def render_card_image(text: str, scene: str, output_dir: Path) -> Path | None:
     body, hint = _split_hint(text)
     accent = meta["accent"]
 
-    # Parse player status from text for UI rendering
-    player_info = _parse_player_status(body)
-    content_lines = _plain_body_lines(body)
+    # Get player info directly from player object (100% accurate)
+    # Filter out status lines from content to avoid duplication
+    content_lines = []
+    if player is None:
+        # No player object - try to parse from text as fallback
+        player_info = _parse_player_status(body)
+        content_lines = _plain_body_lines(body)
+    elif player.get("finished") or player.get("frozen") or player.get("game_over"):
+        player_info = {}
+        content_lines = _plain_body_lines(body)
+    else:
+        # Build player info DIRECTLY from player object - GUARANTEED ACCURATE
+        player_info = _build_player_info_from_object(player)
+        # Filter content to REMOVE status lines (they will be in sidebar only)
+        content_lines = _filter_content_lines(body)
 
     # ===== IMAGE SETUP =====
     bg_path = ASSET_DIR / str(meta["bg"])
     card_width = 700
-    line_h = 24
+    max_card_height = 900
 
     # Calculate content height
     draw_probe = ImageDraw.Draw(Image.new("RGB", (100, 100)))
-    font_content = _load_font(ImageFont, 15)
-    font_small = _load_font(ImageFont, 13)
-
-    content_blocks = []
-    for line in content_lines:
-        wrapped = _wrap_text(draw_probe, line, font_content, 420)
-        content_blocks.append((line, wrapped))
-
-    hint_blocks = []
-    if hint:
-        hint_blocks = _wrap_text(draw_probe, hint, font_small, 620)
-
-    # Total height calculation
-    content_height = sum(max(28, len(w) * line_h + 10) for _, w in content_blocks)
+    font_size = 18
+    line_h = 24
+    font_content = _load_font(font_size, bold=True)
+    font_small = _load_font(16, bold=True)
+    hint_blocks = _wrap_text(draw_probe, hint, font_small, 620) if hint else []
     hint_height = len(hint_blocks) * 20 + 30 if hint_blocks else 0
-    total_height = 130 + content_height + hint_height + 50  # Header + Content + Hint + Footer
-    total_height = max(total_height, 420)
+    base_header = 70  # Top header bar with title
+    status_bar_height = 174 if player is not None else 0
+
+    while True:
+        font_content = _load_font(font_size, bold=True)
+        content_blocks = [
+            (line, _wrap_text(draw_probe, line, font_content, 620))
+            for line in content_lines
+        ]
+        content_height = sum(max(line_h, len(w) * line_h) + 4 for _, w in content_blocks)
+        total_height = base_header + status_bar_height + content_height + hint_height + 30
+        if total_height <= max_card_height or font_size <= 14:
+            break
+        font_size -= 1
+        line_h = max(19, line_h - 1)
+
+    total_height = max(450, min(total_height, max_card_height))
+    content_available_h = total_height - (base_header + status_bar_height) - hint_height - 75
+    content_blocks = _fit_content_blocks(content_blocks, content_available_h, line_h)
 
     # ===== LOAD BACKGROUND =====
-    base = _load_background(Image, bg_path, card_width, total_height)
+    base = _load_background(bg_path, card_width, total_height)
 
     # ===== UI LAYERS =====
     overlay = Image.new("RGBA", (card_width, total_height), (0, 0, 0, 0))
@@ -115,129 +268,203 @@ def render_card_image(text: str, scene: str, output_dir: Path) -> Path | None:
     draw.line((0, header_h - 1, card_width, header_h - 1), fill=(*accent, 220), width=2)
     draw.line((0, header_h, card_width, header_h), fill=(200, 170, 120, 100), width=1)
 
-    # Title text
-    font_title = _load_font(ImageFont, 22, bold=True)
-    draw.text((35, 12), meta["title"], font=font_title, fill=(255, 235, 190, 255))
+    # Title text with stroke
+    font_title = _load_font(26, bold=True)
+    tx, ty = 35, 12
+    # Title stroke
+    draw.text((tx - 1, ty), meta["title"], font=font_title, fill=(30, 20, 10, 255))
+    draw.text((tx + 1, ty), meta["title"], font=font_title, fill=(30, 20, 10, 255))
+    draw.text((tx, ty - 1), meta["title"], font=font_title, fill=(30, 20, 10, 255))
+    draw.text((tx, ty + 1), meta["title"], font=font_title, fill=(30, 20, 10, 255))
+    draw.text((tx, ty), meta["title"], font=font_title, fill=(255, 245, 220, 255))
 
     # Decorative corners
     _draw_decor_corner(draw, 10, 8, "tl", accent)
     _draw_decor_corner(draw, card_width - 10, 8, "tr", accent)
 
-    # ===== LEFT SIDEBAR - Player Status =====
+    # ===== HORIZONTAL STATUS BAR - Player Status (TOP ALIGNED, MONOSPACE) =====
     if player_info:
-        sidebar_w = 200
-        sidebar_x = 25
-        sidebar_y = 70
+        status_x = 30
+        status_y = 70
+        status_w = card_width - 60
+        status_h = 174  # Compact horizontal layout + XP/equipment/skill rows
 
-        # Sidebar background
+        # Status bar background - single horizontal panel
         draw.rounded_rectangle(
-            (sidebar_x, sidebar_y, sidebar_x + sidebar_w, sidebar_y + 290),
-            radius=8, fill=(20, 15, 10, 160), outline=(180, 150, 100, 140), width=2
+            (status_x, status_y, status_x + status_w, status_y + status_h),
+            radius=8, fill=(20, 15, 10, 180), outline=(180, 150, 100, 140), width=2
         )
 
-        y = sidebar_y + 10
-        font_stat_label = _load_font(ImageFont, 12)
-        font_stat_value = _load_font(ImageFont, 14)
+        # Use MONOSPACE font for aligned columns
+        font_mono = _load_font(15, bold=True)  # Monospace for column alignment
+        font_mono_small = _load_font(13, bold=True)
+        font_mono_skill = _load_font(12, bold=True)
 
-        # Player name if available
-        if player_info.get("name"):
-            draw.text((sidebar_x + 15, y), f"👤 {player_info['name'][:8]}", font=font_stat_value, fill=(255, 230, 180, 255))
-            y += 28
+        y = status_y + 8
+        col_gap = 20  # Gap between columns
 
-        # HP Bar
-        hp, max_hp = player_info.get("hp", 0), player_info.get("max_hp", 100)
-        _draw_status_bar(draw, sidebar_x + 15, y, 170, 18, "HP", hp, max_hp, (220, 70, 70), font_stat_label)
-        y += 28
-
-        # MP Bar
-        mp, max_mp = player_info.get("mp", 0), player_info.get("max_mp", 50)
-        _draw_status_bar(draw, sidebar_x + 15, y, 170, 18, "MP", mp, max_mp, (70, 140, 220), font_stat_label)
-        y += 28
-
+        # === ROW 1: Name | Sect | Level | Floor | AC ===
+        x = status_x + 15
+        # Name
+        name_text = player_info.get("name", "侠客")[:8]
+        draw.text((x, y), f"👤 {name_text:<8s}", font=font_mono, fill=(255, 230, 180, 255))
+        x += 120
+        # Sect
+        sect_text = player_info.get("sect", "无门无派")[:6]
+        draw.text((x, y), f"🏛️ {sect_text:<6s}", font=font_mono, fill=(180, 200, 230, 255))
+        x += 110
+        # Level (NEW!)
+        level_text = f"Lv{player_info.get('level', 1)}"
+        draw.text((x, y), f"⭐ {level_text:<4s}", font=font_mono, fill=(255, 215, 0, 255))
+        x += 80
+        # Floor
+        floor_text = f"第{player_info.get('floor', 1)}层"
+        draw.text((x, y), f"📍 {floor_text:<5s}", font=font_mono, fill=(200, 180, 140, 255))
+        x += 90
+        # AC
+        ac_text = f"AC {player_info.get('ac', 10)}"
+        draw.text((x, y), f"🛡️ {ac_text:<5s}", font=font_mono, fill=(230, 220, 190, 255))
+        x += 80
         # Silver
-        draw.text((sidebar_x + 15, y), f"💰 碎银: {player_info.get('silver', 0)}两", font=font_stat_label, fill=(220, 200, 160, 255))
-        y += 22
+        silver_text = f"{player_info.get('silver', 0)}两"
+        draw.text((x, y), f"💰 {silver_text:<6s}", font=font_mono, fill=(220, 200, 160, 255))
 
-        # Floor progress
-        draw.text((sidebar_x + 15, y), f"📍 第{player_info.get('floor', 1)}层", font=font_stat_label, fill=(200, 180, 140, 255))
-        y += 22
+        y += 26
 
-        # Sect if available
-        if player_info.get("sect"):
-            draw.text((sidebar_x + 15, y), f"🏛️ {player_info['sect'][:6]}", font=font_stat_label, fill=(180, 200, 230, 255))
-            y += 22
+        # === ROW 2: HP Bar | MP Bar ===
+        hp, max_hp = player_info.get("hp", 0), player_info.get("max_hp", 100)
+        mp, max_mp = player_info.get("mp", 0), player_info.get("max_mp", 50)
 
-        if player_info.get("ac") is not None:
-            draw.text((sidebar_x + 15, y), f"🛡️ AC: {player_info['ac']}", font=font_stat_label, fill=(230, 220, 190, 255))
-            y += 22
+        # HP Bar (wider for horizontal layout)
+        _draw_status_bar(draw, status_x + 15, y, 220, 20, "HP", hp, max_hp, (220, 70, 70), font_mono_small)
+        # MP Bar next to HP
+        _draw_status_bar(draw, status_x + 250, y, 220, 20, "MP", mp, max_mp, (70, 140, 220), font_mono_small)
 
-        if player_info.get("status"):
-            status_text = f"状态: {player_info['status']}"
-            for line in _wrap_text(draw, status_text, font_stat_label, 170)[:2]:
-                draw.text((sidebar_x + 15, y), line, font=font_stat_label, fill=(230, 205, 150, 255))
-                y += 18
+        # Status text on the right
+        if player_info.get("status") and player_info["status"] != "暂无":
+            status_text = player_info["status"][:12]
+            draw.text((status_x + 525, y + 2), f"📌 {status_text}", font=font_mono_small, fill=(230, 205, 150, 255))
 
-        if player_info.get("attrs"):
-            y += 4
-            draw.text((sidebar_x + 15, y), "属性", font=font_stat_label, fill=(255, 230, 180, 255))
-            y += 18
-            for line in _wrap_text(draw, player_info["attrs"], font_stat_label, 170)[:3]:
-                draw.text((sidebar_x + 15, y), line, font=font_stat_label, fill=(215, 225, 235, 255))
-                y += 18
+        y += 28
 
-        if player_info.get("equipment"):
-            y += 4
-            draw.text((sidebar_x + 15, y), "装备", font=font_stat_label, fill=(255, 230, 180, 255))
-            y += 18
-            for line in _wrap_text(draw, player_info["equipment"], font_stat_label, 170)[:3]:
-                draw.text((sidebar_x + 15, y), line, font=font_stat_label, fill=(220, 210, 190, 255))
-                y += 18
+        # === ROW 3: XP Bar (经验条) ===
+        level = player_info.get("level", 1)
+        current_xp = player_info.get("xp", 0)
+        from .game_data import LEVEL_UP_XP, MAX_LEVEL
+        if level < MAX_LEVEL:
+            next_xp = LEVEL_UP_XP.get(level + 1, 0)
+            prev_xp = LEVEL_UP_XP.get(level, 0)
+            progress_xp = current_xp - prev_xp
+            required_xp = next_xp - prev_xp
+        else:
+            progress_xp = 100
+            required_xp = 100
+        _draw_status_bar(draw, status_x + 15, y, 455, 16, "EXP", progress_xp, required_xp, (255, 200, 50), font_mono_small)
 
-        # Content area offset
-        content_x = 250
-        content_w = 430
+        y += 24
+
+        # === ROW 4: DND 6 ABILITIES (FULL MONOSPACE ALIGNED) ===
+        # Get DND-style attribute values directly from sect
+        from .engine import SECTS
+        sect = SECTS.get(player_info.get("sect", ""), None)
+        if sect:
+            attrs = sect.attrs  # {str, dex, con, int, wis, cha}
+            # Format: STR+2 DEX+0 CON+3 INT+1 WIS+0 CHA+0 (monospace aligned)
+            attr_str = (f"力{attrs.get('str', 0):+2d}  "
+                       f"敏{attrs.get('dex', 0):+2d}  "
+                       f"体{attrs.get('con', 0):+2d}  "
+                       f"智{attrs.get('int', 0):+2d}  "
+                       f"感{attrs.get('wis', 0):+2d}  "
+                       f"魅{attrs.get('cha', 0):+2d}")
+            draw.text((status_x + 15, y), f"📊 {attr_str}", font=font_mono, fill=(215, 225, 235, 255))
+        elif player_info.get("attrs"):
+            # Fallback to parsed attrs
+            draw.text((status_x + 15, y), f"📊 {player_info['attrs']}", font=font_mono, fill=(215, 225, 235, 255))
+
+        y += 24
+
+        # === ROW 5: EQUIPMENT (split slots) ===
+        equipment_slots = player_info.get("equipment_slots", {})
+        def short_equipment(slot: str) -> str:
+            name = equipment_slots.get(slot) or "无"
+            return name if len(name) <= 8 else name[:8]
+
+        equipment_line = "  ".join([
+            f"奇器:{short_equipment('accessory')}",
+            f"武器:{short_equipment('weapon')}",
+            f"护甲:{short_equipment('armor')}",
+        ])
+        draw.text((status_x + 15, y), f"🎒 {equipment_line}", font=font_mono_skill, fill=(230, 205, 150, 255))
+
+        y += 24
+
+        # === ROW 6: SKILLS (compact inline display) ===
+        basic_skills = list(player_info.get("sect_skills", {}).keys())
+        learned_skills = player_info.get("skills", [])
+        all_skills = basic_skills + learned_skills
+        active_skill = player_info.get("active_skill", "自动")
+
+        if all_skills:
+            skill_texts = []
+            for skill_name in all_skills[:5]:  # Show up to 5 skills inline
+                is_active = skill_name == active_skill or (active_skill == "自动" and skill_name == all_skills[0])
+                mp_cost = SKILL_MP_COST.get(skill_name, 0)
+                prefix = "★" if is_active else " "
+                mp_text = f"({mp_cost})" if mp_cost > 0 else ""
+                skill_texts.append(f"{prefix}{skill_name}{mp_text}")
+
+            skills_line = "  ".join(skill_texts)
+            draw.text((status_x + 15, y), f"⚔️ {skills_line}", font=font_mono_skill, fill=(255, 210, 120, 255))
+        else:
+            draw.text((status_x + 15, y), "⚔️ 暂未习得武学", font=font_mono_skill, fill=(180, 170, 150, 255))
+
+        # Content area starts BELOW status bar
+        content_x = 40
+        content_w = card_width - 80  # Full width content
+        content_y = status_y + status_h + 15
     else:
         # No player info - use full width
         content_x = 40
         content_w = 620
+        content_y = 70
 
-    # ===== CONTENT AREA =====
-    content_y = 70
+    # ===== CONTENT AREA ===== - MUD STYLE (CLEAN TEXT, NO BORDERS)
 
-    # Content panel background
-    content_total_h = total_height - content_y - (hint_height + 30 if hint_blocks else 30)
+    # Simple semi-transparent background panel
+    content_total_h = total_height - content_y - 25
     draw.rounded_rectangle(
         (content_x, content_y, content_x + content_w, content_y + content_total_h),
-        radius=10, fill=(10, 8, 6, 110), outline=(160, 130, 90, 120), width=2
+        radius=8, fill=(10, 8, 6, 180), outline=(120, 100, 70, 100), width=1
     )
 
-    # Inner glow effect
-    draw.rounded_rectangle(
-        (content_x + 2, content_y + 2, content_x + content_w - 2, content_y + content_total_h - 2),
-        radius=9, outline=(*accent, 40), width=1
-    )
+    # Draw content lines - MUD style (just clean text, no per-line boxes)
+    y = content_y + 20
+    stroke_color = (0, 0, 0, 220)  # Text stroke for readability
 
-    # Draw content lines
-    y = content_y + 15
     for original_line, wrapped in content_blocks:
-        block_h = max(28, len(wrapped) * line_h + 10)
+        if y + line_h > content_y + content_total_h - 8:
+            break
+        # Get line color based on type
+        _, text_fill, _ = _get_line_style(original_line, accent)
 
-        # Special line styling
-        bg_fill, text_fill, border_fill = _get_line_style(original_line, accent)
-
-        # Draw line background
-        draw.rounded_rectangle(
-            (content_x + 12, y, content_x + content_w - 12, y + block_h),
-            radius=6, fill=bg_fill, outline=border_fill, width=1
-        )
-
-        # Draw wrapped text
-        ty = y + 5
+        # MUD-style - just text, no per-line backgrounds or borders
+        ty = y
         for wline in wrapped:
-            draw.text((content_x + 22, ty), wline, font=font_content, fill=text_fill)
+            if ty + line_h > content_y + content_total_h - 8:
+                break
+            tx, tyy = content_x + 20, ty
+            # Draw stroke for readability on dark background
+            draw.text((tx - 1, tyy), wline, font=font_content, fill=stroke_color)
+            draw.text((tx + 1, tyy), wline, font=font_content, fill=stroke_color)
+            draw.text((tx, tyy - 1), wline, font=font_content, fill=stroke_color)
+            draw.text((tx, tyy + 1), wline, font=font_content, fill=stroke_color)
+            # Bright text for MUD readability
+            bright_text = (255, 250, 240, 255) if text_fill[3] > 200 else text_fill
+            draw.text((tx, tyy), wline, font=font_content, fill=bright_text)
             ty += line_h
 
-        y += block_h + 6
+        # Tight line spacing like MUD
+        y += max(line_h * len(wrapped), line_h) + 4
 
     # ===== HINT AREA =====
     if hint_blocks:
@@ -248,8 +475,15 @@ def render_card_image(text: str, scene: str, output_dir: Path) -> Path | None:
         )
 
         ty = hint_y + 8
+        stroke_color = (0, 0, 0, 200)
         for hline in hint_blocks:
-            draw.text((55, ty), hline, font=font_small, fill=(255, 245, 220, 255))
+            tx = 55
+            # Stroke for hint text
+            draw.text((tx - 1, ty), hline, font=font_small, fill=stroke_color)
+            draw.text((tx + 1, ty), hline, font=font_small, fill=stroke_color)
+            draw.text((tx, ty - 1), hline, font=font_small, fill=stroke_color)
+            draw.text((tx, ty + 1), hline, font=font_small, fill=stroke_color)
+            draw.text((tx, ty), hline, font=font_small, fill=(255, 250, 235, 255))
             ty += 20
 
     # ===== OUTER FRAME =====
@@ -354,49 +588,219 @@ def _parse_player_status(text):
         if panel_name_match:
             info["name"] = panel_name_match.group(1).strip()
 
+    # Parse learned skills (advanced skills)
+    skills_match = re.search(r"已学进阶武学[：:]\s*([^\n]+)", text)
+    if skills_match:
+        skills_text = skills_match.group(1).strip()
+        if skills_text and skills_text != "暂无":
+            info["skills"] = [s.strip() for s in skills_text.split("、") if s.strip()]
+        else:
+            info["skills"] = []
+    else:
+        info["skills"] = []
+
+    # Parse active skill
+    active_skill_match = re.search(r"当前技能[：:]\s*([^\n]+)", text)
+    if active_skill_match:
+        info["active_skill"] = active_skill_match.group(1).strip()
+    else:
+        info["active_skill"] = "自动"
+
+    # Get sect basic skills from our mapping (not from text) - dict with name: mp_cost
+    sect_name = info.get("sect", "")
+    if sect_name in SECT_BASIC_SKILLS:
+        info["sect_skills"] = SECT_BASIC_SKILLS[sect_name]
+    else:
+        # Fallback - try to detect sect from text
+        for sect in SECT_BASIC_SKILLS:
+            if sect in text:
+                info["sect_skills"] = SECT_BASIC_SKILLS[sect]
+                break
+        else:
+            info["sect_skills"] = {}
+
     return info
 
 
-def _load_background(Image, path: Path, width: int, height: int):
-    bg = Image.new("RGB", (width, height), (28, 23, 20))
-    draw = ImageDraw.Draw(bg)
-    for y in range(height):
-        r = 28 + int(10 * (y / max(1, height)))
-        g = 23 + int(8 * (y / max(1, height)))
-        b = 20 + int(10 * (y / max(1, height)))
-        draw.line((0, y, width, y), fill=(r, g, b))
+def _build_player_info_from_object(player: dict) -> dict:
+    """
+    Build player info DIRECTLY from the player object (100% accurate, real-time).
+    NO TEXT PARSING - just raw data access!
+    """
+    from .engine import _available_combat_skill_names, _player_ac
+
+    sect_name = player.get("sect", "")
+    sect_skills_map = SECT_BASIC_SKILLS.get(sect_name, {})
+
+    # Get skill names
+    sect_skill_names = list(sect_skills_map.keys())
+    learned_skills = []
+    # Get learned skill names from engine helper
+    try:
+        from .engine import _learned_skill_names
+        learned_skills = _learned_skill_names(player)
+    except:
+        pass
+
+    # Calculate AC directly
+    ac = 10  # Base AC
+    try:
+        ac = _player_ac(player)
+    except:
+        pass
+
+    # Get attrs summary directly
+    attrs_str = ""
+    try:
+        from .engine import format_attrs
+        attrs_str = format_attrs(sect_name)
+    except:
+        pass
+
+    # Get equipment info
+    equipment_str = ""
+    equipment_slots = {"weapon": "", "armor": "", "accessory": ""}
+    try:
+        from .engine import _equipment_text
+        from .game_data import EQUIPMENT_BY_ID
+        equipment_str = _equipment_text(player)
+        for slot in equipment_slots:
+            item_id = (player.get("equipped") or {}).get(slot)
+            row = EQUIPMENT_BY_ID.get(item_id)
+            equipment_slots[slot] = row["name"] if row else ""
+    except:
+        pass
+
+    status_str = player.get("status_text", "") if player.get("status_text") else "暂无"
+
+    return {
+        "name": player.get("nickname", ""),
+        "level": player.get("level", 1),
+        "xp": player.get("xp", 0),
+        "hp": player.get("hp", 0),
+        "max_hp": player.get("max_hp", 0),
+        "mp": player.get("mp", 0),
+        "max_mp": player.get("max_mp", 0),
+        "silver": player.get("silver", 0),
+        "floor": player.get("floor", 1),
+        "sect": sect_name,
+        "ac": ac,
+        "attrs": attrs_str,
+        "status": status_str,
+        "equipment": equipment_str,
+        "equipment_slots": equipment_slots,
+        "sect_skills": sect_skills_map,  # Dict {name: mp_cost}
+        "skills": learned_skills,  # List of learned advanced skill names
+        "active_skill": player.get("active_skill", "") or "自动",
+    }
+
+
+def _filter_content_lines(text: str) -> list[str]:
+    """
+    Filter out status/attribute/skill lines from content to avoid duplication.
+    These will be shown in the sidebar ONLY!
+    """
+    lines = []
+    skip_prefixes = (
+        "【金庸踢门团】", "门派：", "门派 [",
+        "进度：", "第", "层，已开门",
+        "HP ", "MP ", "AC ", "攻击+", "伤害+",
+        "属性：", "素材", "核心特性：",
+        "已学进阶武学：", "当前技能：",
+        "装备：", "近期残页：", "增益：", "状态：",
+        "药品：", "背囊：", "随身饵剂：",
+        "背包物品：", "待拾取：", "局外点数",
+        "═══", "━━━", "───",
+    )
+    for line in text.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        if line.startswith("资源物品："):
+            lines.append(line)
+            continue
+        # Skip status lines - they go to sidebar only
+        if any(line.startswith(k) for k in skip_prefixes):
+            continue
+        lines.append(line)
+    return lines or [" "]
+
+
+def _player_skill_names(player: dict) -> list[str]:
+    """Get all skill names available to player (basic + learned)."""
+    sect_name = player.get("sect", "")
+    sect_skills_map = SECT_BASIC_SKILLS.get(sect_name, {})
+    basic = list(sect_skills_map.keys())
+
+    try:
+        from .engine import _learned_skill_names
+        learned = _learned_skill_names(player)
+    except:
+        learned = []
+
+    return basic + learned
+
+
+def _load_background(path: Path, width: int, height: int):
+    # Solid dark brown background - clean, no distraction
+    bg = Image.new("RGB", (width, height), (22, 18, 14))
 
     if path.is_file():
         try:
             img = Image.open(path).convert("RGB")
-            scale = width / max(1, img.width)
-            resized_h = max(1, int(img.height * scale))
-            img = img.resize((width, resized_h), Image.Resampling.LANCZOS)
-            if resized_h > height:
-                img = img.crop((0, resized_h - height, width, resized_h))
-                resized_h = height
-            bg.paste(img, (0, height - resized_h))
-            return bg.convert("RGBA")
+            # Scale to cover entire height (vertical portrait mode)
+            scale = height / max(1, img.height)
+            resized_w = max(1, int(img.width * scale))
+            img = img.resize((resized_w, height), Image.Resampling.LANCZOS)
+            # Center crop horizontally if too wide
+            if resized_w > width:
+                crop_x = (resized_w - width) // 2
+                img = img.crop((crop_x, 0, crop_x + width, height))
+            # Paste background image
+            bg.paste(img, (0, 0))
         except Exception as e:
             print(f"Background load error: {e}")
 
+    # Add heavy dark overlay to make text readable everywhere
+    # Dark translucent layer over the entire image
+    draw = ImageDraw.Draw(bg)
+    for y in range(height):
+        # 75% dark overlay - make sure text is always readable
+        draw.line((0, y, width, y), fill=(18, 14, 10))
+
+    # Subtle vignette (slightly darker at edges)
+    overlay = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+    draw_overlay = ImageDraw.Draw(overlay)
+    for y in range(height):
+        edge_dist = min(y, height - y) / (height / 2)
+        alpha = int(40 * (1 - edge_dist))  # Darker at top/bottom edges
+        draw_overlay.line((0, y, width, y), fill=(0, 0, 0, alpha))
+
+    bg = Image.alpha_composite(bg.convert("RGBA"), overlay)
     return bg.convert("RGBA")
 
 
-def _load_font(ImageFont, size: int, bold: bool = False):
+def _load_font(size: int, bold: bool = False):
+    # Use bolder fonts for better readability
     candidates = [
-        "/System/Library/Fonts/PingFang.ttc",
-        "/System/Library/Fonts/STHeiti Light.ttc",
-        "/System/Library/Fonts/Hiragino Sans GB.ttc",
-        "/Library/Fonts/Arial Unicode.ttf",
-        "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
-        "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
-        "/usr/share/fonts/truetype/wqy/wqy-microhei.ttc",
+        # Bold variants first
+        ("/System/Library/Fonts/PingFang.ttc", 1 if bold else 0),  # PingFang Medium/Regular
+        ("/System/Library/Fonts/PingFang.ttc", 2),  # PingFang Bold as fallback
+        ("/System/Library/Fonts/STHeiti Medium.ttc", 0),
+        ("/System/Library/Fonts/Hiragino Sans GB W6.ttc", 0),
+        ("/System/Library/Fonts/Helvetica.ttc", 1),
+        # Regular variants
+        ("/System/Library/Fonts/STHeiti Light.ttc", 0),
+        ("/System/Library/Fonts/Hiragino Sans GB.ttc", 0),
+        ("/Library/Fonts/Arial Unicode.ttf", 0),
+        ("/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc", 0),
+        ("/usr/share/fonts/truetype/noto/NotoSansCJK-Bold.ttc", 0),
+        ("/usr/share/fonts/truetype/wqy/wqy-microhei.ttc", 0),
     ]
-    for path in candidates:
+    for path, index in candidates:
         if Path(path).is_file():
             try:
-                return ImageFont.truetype(path, size=size, index=0)
+                return ImageFont.truetype(path, size=size, index=index)
             except Exception:
                 continue
     return ImageFont.load_default()
@@ -419,10 +823,42 @@ def _wrap_text(draw, text: str, font, max_width: int) -> list[str]:
     return lines
 
 
+def _fit_content_blocks(content_blocks: list[tuple[str, list[str]]], available_h: int, line_h: int) -> list[tuple[str, list[str]]]:
+    max_lines = max(1, int(available_h // line_h))
+    notice = "卡片内容过长，完整文字请看下方文本区。"
+    content_max_lines = max(1, max_lines - 1)
+    used = 0
+    fitted: list[tuple[str, list[str]]] = []
+    truncated = False
+    for original, wrapped in content_blocks:
+        lines = wrapped or [""]
+        remaining = content_max_lines - used
+        if remaining <= 0:
+            truncated = True
+            break
+        if len(lines) <= remaining:
+            fitted.append((original, lines))
+            used += len(lines)
+            continue
+        clipped = lines[:remaining]
+        if clipped:
+            clipped[-1] = clipped[-1].rstrip("，。；、,. ") + "……"
+            fitted.append((original, clipped))
+        used = content_max_lines
+        truncated = True
+        break
+    if used >= content_max_lines and fitted:
+        original, lines = fitted[-1]
+        if lines and not lines[-1].endswith("……"):
+            lines[-1] = lines[-1].rstrip("，。；、,. ") + "……"
+            fitted[-1] = (original, lines)
+    if truncated:
+        fitted.append((notice, [notice]))
+    return fitted
+
+
 def _split_hint(text: str) -> tuple[str, str]:
-    parts = text.rsplit("\n\n下一步可用：", 1)
-    if len(parts) == 2:
-        return parts[0].strip(), "下一步可用：" + parts[1].strip()
+    # Don't extract hint - keep all content in main body to avoid duplicate "可用行动"
     return text.strip(), ""
 
 

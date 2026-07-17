@@ -69,6 +69,27 @@ SECT_TRAIT_ROWS = (
 )
 
 
+SECT_FLOOR_RECOVERY_ROWS = (
+    {"sect": "少林", "hp_recovery": 5, "flavor": "佛门护体，金刚内息护住伤处"},
+    {"sect": "武当", "hp_recovery": 4, "flavor": "太极调息，阴阳气机缓缓归元"},
+    {"sect": "峨眉", "hp_recovery": 6, "flavor": "峨眉九阳温养经脉，剑气护心"},
+    {"sect": "全真", "hp_recovery": 5, "flavor": "玄门先天功行遍周身，真息绵长"},
+    {"sect": "华山", "hp_recovery": 4, "flavor": "养气收剑，胸中郁气随吐纳散去"},
+    {"sect": "丐帮", "hp_recovery": 3, "flavor": "江湖野路子最重扛打，靠墙喘匀一口气"},
+    {"sect": "明教", "hp_recovery": 4, "flavor": "圣火心法护住心脉，余焰温血"},
+    {"sect": "青城", "hp_recovery": 3, "flavor": "松风心法清理逆气，毒掌余劲渐平"},
+    {"sect": "雪山派", "hp_recovery": 4, "flavor": "寒冰真气镇住伤势，痛感稍缓"},
+    {"sect": "大理段氏", "hp_recovery": 5, "flavor": "段氏吐纳法运转，一阳暖意通行经脉"},
+    {"sect": "逍遥派", "hp_recovery": 4, "flavor": "北冥吐纳化散疲惫，身法复又轻灵"},
+    {"sect": "金刚宗", "hp_recovery": 5, "flavor": "密宗金刚劲沉入骨血，硬生生压住伤口"},
+    {"sect": "桃花岛", "hp_recovery": 3, "flavor": "奇门步法引气归位，杂乱内息渐顺"},
+    {"sect": "日月神教", "hp_recovery": 3, "flavor": "吸星余劲回流丹田，勉强稳住血气"},
+    {"sect": "血刀门", "hp_recovery": 4, "flavor": "血刀邪劲越战越烈，凶性反逼痛楚退去"},
+    {"sect": "白驼山庄", "hp_recovery": 3, "flavor": "白驼秘药压住毒伤，呼吸渐稳"},
+)
+SECT_FLOOR_RECOVERY_RULES = {row["sect"]: row for row in SECT_FLOOR_RECOVERY_ROWS}
+
+
 SECT_TRAITS_BY_SECT = {
     row["sect"]: tuple(item["label"] for item in SECT_TRAIT_ROWS if item["sect"] == row["sect"])
     for row in SECT_ROWS
@@ -99,8 +120,9 @@ PLAYER_START = {row["key"]: int(row["value"]) for row in PLAYER_START_ROWS}
 
 
 DIFFICULTY_ROWS = (
-    {"difficulty": "普通", "base_dc": 10, "enemy_bonus": 0, "clear_essence": 2, "clear_scrolls": 5},
-    {"difficulty": "困难", "base_dc": 13, "enemy_bonus": 3, "clear_essence": 4, "clear_scrolls": 10},
+    {"difficulty": "普通", "base_dc": 10, "enemy_bonus": 3, "enemy_floor_offset": 0, "combat_mp_regen": 1, "noncombat_mp_regen": 2, "floor_mp_recovery": 0, "battle_fragment_chance": 0, "clear_advanced_fragment_chance": 15, "clear_ultimate_fragment": 0, "clear_legendary_chance": 0, "decline_true_wushen_legendary_chance": 0, "clear_essence": 8},
+    {"difficulty": "困难", "base_dc": 14, "enemy_bonus": 6, "enemy_floor_offset": 1, "combat_mp_regen": 1, "combat_mp_regen_interval": 2, "noncombat_mp_regen": 2, "floor_mp_recovery": 0, "battle_fragment_chance": 25, "clear_advanced_fragment_chance": 0, "clear_ultimate_fragment": 1, "clear_legendary_chance": 3, "decline_true_wushen_legendary_chance": 0, "clear_essence": 14},
+    {"difficulty": "炼狱", "base_dc": 16, "enemy_bonus": 10, "enemy_floor_offset": 2, "combat_mp_regen": 0, "combat_mp_regen_interval": 1, "noncombat_mp_regen": 1, "floor_mp_recovery": 2, "battle_fragment_chance": 35, "clear_advanced_fragment_chance": 0, "clear_ultimate_fragment": 1, "clear_legendary_chance": 0, "decline_true_wushen_legendary_chance": 12, "clear_essence": 24},
 )
 DIFFICULTIES = {row["difficulty"]: row for row in DIFFICULTY_ROWS}
 
@@ -180,12 +202,47 @@ MARTIAL_ART_SKILL_ROWS = (
     {"skill_id": "riyue_kuihua_miyingci", "sect": "日月神教", "name": "葵花迷影刺", "tier": "进阶", "category": "身法", "obtain_source": "sect_encounter", "obtain_min_floor": 2, "exclusive_group": "riyue_advanced", "ability": "dex", "attack_segments": 4, "damage_dice_count": 1, "damage_die": 4, "damage_bonus": 1, "damage_type": "穿刺", "mp_cost": 2, "damage_min": 8, "damage_max": 20, "damage_avg": 14.0, "description": "葵花身法迷影连刺；造成4段1d4+1穿刺伤害。"},
     {"skill_id": "riyue_xixing_chanjin", "sect": "日月神教", "name": "吸星缠劲", "tier": "进阶", "category": "内功", "obtain_source": "sect_encounter", "obtain_min_floor": 2, "exclusive_group": "riyue_advanced", "ability": "str", "attack_segments": 2, "damage_dice_count": 1, "damage_die": 8, "damage_bonus": 2, "damage_type": "钝击", "mp_cost": 2, "damage_min": 6, "damage_max": 20, "damage_avg": 13.0, "description": "吸星内劲缠敌；造成2段1d8+2钝击伤害。"},
     {"skill_id": "xuedao_xuedao_lianzhan", "sect": "血刀门", "name": "血刀连斩", "tier": "进阶", "category": "刀法", "obtain_source": "sect_encounter", "obtain_min_floor": 2, "exclusive_group": "xuedao_advanced", "ability": "str", "attack_segments": 3, "damage_dice_count": 1, "damage_die": 6, "damage_bonus": 2, "damage_type": "劈砍", "mp_cost": 3, "damage_min": 9, "damage_max": 24, "damage_avg": 16.5, "description": "血刀门中期主攻刀路；造成3段1d6+2劈砍伤害。"},
-    {"skill_id": "xuedao_xueying_zhuihun", "sect": "血刀门", "name": "血影追魂", "tier": "进阶", "category": "身法", "obtain_source": "sect_encounter", "obtain_min_floor": 2, "exclusive_group": "xuedao_advanced", "ability": "dex", "attack_segments": 4, "damage_dice_count": 1, "damage_die": 4, "damage_bonus": 1, "damage_type": "流血", "mp_cost": 2, "damage_min": 8, "damage_max": 20, "damage_avg": 14.0, "description": "血影贴身追击；造成4段1d4+1流血伤害。"},
+    {"skill_id": "xuedao_xueying_zhuihun", "sect": "血刀门", "name": "血影追魂", "tier": "进阶", "category": "身法", "obtain_source": "sect_encounter", "obtain_min_floor": 2, "exclusive_group": "xuedao_advanced", "ability": "dex", "attack_segments": 4, "damage_dice_count": 1, "damage_die": 4, "damage_bonus": 1, "damage_type": "流血", "mp_cost": 2, "damage_min": 8, "damage_max": 20, "damage_avg": 14.0, "description": "血影贴身追击；造成4段1d4+1流血伤害，命中后叠加4层流血。"},
     {"skill_id": "baituo_baituo_dushazhang", "sect": "白驼山庄", "name": "白驼毒砂掌", "tier": "进阶", "category": "拳掌", "obtain_source": "sect_encounter", "obtain_min_floor": 2, "exclusive_group": "baituo_advanced", "ability": "int", "attack_segments": 2, "damage_dice_count": 1, "damage_die": 8, "damage_bonus": 2, "damage_type": "毒", "mp_cost": 2, "damage_min": 6, "damage_max": 20, "damage_avg": 13.0, "description": "白驼毒掌进阶；造成2段1d8+2毒伤害。"},
     {"skill_id": "baituo_hama_tujin", "sect": "白驼山庄", "name": "蛤蟆吐劲", "tier": "进阶", "category": "内功", "obtain_source": "sect_encounter", "obtain_min_floor": 2, "exclusive_group": "baituo_advanced", "ability": "con", "attack_segments": 2, "damage_dice_count": 1, "damage_die": 10, "damage_bonus": 2, "damage_type": "毒", "mp_cost": 3, "damage_min": 6, "damage_max": 24, "damage_avg": 15.0, "description": "蛤蟆功外放毒劲；造成2段1d10+2毒伤害。"},
 )
-MARTIAL_ART_SKILLS = {row["skill_id"]: row for row in MARTIAL_ART_SKILL_ROWS}
-MARTIAL_ART_SKILLS_BY_NAME = {row["name"]: row for row in MARTIAL_ART_SKILL_ROWS}
+ULTIMATE_MARTIAL_ART_SKILL_ROWS = tuple(
+    {
+        "skill_id": f"ultimate_{idx}",
+        "sect": row["sect"],
+        "name": row["ultimate"],
+        "tier": "顶级",
+        "category": "绝学",
+        "obtain_source": "meta_sect_unlock",
+        "obtain_min_floor": 6,
+        "exclusive_group": f"{idx}_ultimate",
+        "ability": SECTS[row["sect"]].main_attr,
+        "attack_segments": 3,
+        "damage_dice_count": 1,
+        "damage_die": 8,
+        "damage_bonus": 3,
+        "damage_type": "真气",
+        "mp_cost": 4,
+        "damage_min": 12,
+        "damage_max": 33,
+        "damage_avg": 22.5,
+        "description": f"{row['sect']}压箱底的门派绝学；造成3段1d8+3真气伤害。",
+    }
+    for idx, row in enumerate(SECT_ROWS, start=1)
+)
+
+LEGENDARY_MARTIAL_ART_SKILL_ROWS = (
+    {"skill_id": "legendary_jiuyin_zhenjing", "sect": "通用", "name": "九阴真经", "tier": "传说", "category": "绝学", "obtain_source": "meta_legendary_unlock", "obtain_min_floor": 6, "exclusive_group": "", "ability": "wis", "attack_segments": 4, "damage_dice_count": 1, "damage_die": 8, "damage_bonus": 3, "damage_type": "阴劲", "mp_cost": 5, "damage_min": 16, "damage_max": 44, "damage_avg": 30.0, "description": "天下武学总纲之一；造成4段1d8+3阴劲伤害。"},
+    {"skill_id": "legendary_jiuyang_shengong", "sect": "通用", "name": "九阳神功", "tier": "传说", "category": "内功", "obtain_source": "meta_legendary_unlock", "obtain_min_floor": 6, "exclusive_group": "", "ability": "con", "attack_segments": 3, "damage_dice_count": 1, "damage_die": 10, "damage_bonus": 4, "damage_type": "阳炎", "mp_cost": 5, "damage_min": 15, "damage_max": 42, "damage_avg": 28.5, "description": "至刚至阳的护体神功；造成3段1d10+4阳炎伤害。"},
+    {"skill_id": "legendary_dugu_jiujian", "sect": "通用", "name": "独孤九剑总诀", "tier": "传说", "category": "剑法", "obtain_source": "meta_legendary_unlock", "obtain_min_floor": 6, "exclusive_group": "", "ability": "dex", "attack_segments": 5, "damage_dice_count": 1, "damage_die": 6, "damage_bonus": 3, "damage_type": "劈砍", "mp_cost": 5, "damage_min": 20, "damage_max": 45, "damage_avg": 32.5, "description": "破尽天下招式的剑道总诀；造成5段1d6+3劈砍伤害。"},
+    {"skill_id": "legendary_xiaoyao_yufeng", "sect": "通用", "name": "逍遥御风", "tier": "传说", "category": "身法", "obtain_source": "meta_legendary_unlock", "obtain_min_floor": 6, "exclusive_group": "", "ability": "int", "attack_segments": 4, "damage_dice_count": 1, "damage_die": 8, "damage_bonus": 2, "damage_type": "真气", "mp_cost": 4, "damage_min": 12, "damage_max": 40, "damage_avg": 26.0, "description": "御风而行，虚实难测；造成4段1d8+2真气伤害。"},
+    {"skill_id": "legendary_tianmo_jieti", "sect": "通用", "name": "天魔解体大法", "tier": "传说", "category": "秘术", "obtain_source": "meta_legendary_unlock", "obtain_min_floor": 6, "exclusive_group": "", "ability": "str", "attack_segments": 3, "damage_dice_count": 1, "damage_die": 12, "damage_bonus": 4, "damage_type": "流血", "mp_cost": 5, "damage_min": 15, "damage_max": 48, "damage_avg": 31.5, "description": "燃尽气血换取极限爆发；造成3段1d12+4流血伤害。"},
+)
+LEGENDARY_MARTIAL_ART_SKILLS = {row["skill_id"]: row for row in LEGENDARY_MARTIAL_ART_SKILL_ROWS}
+
+ALL_MARTIAL_ART_SKILL_ROWS = MARTIAL_ART_SKILL_ROWS + ULTIMATE_MARTIAL_ART_SKILL_ROWS + LEGENDARY_MARTIAL_ART_SKILL_ROWS
+MARTIAL_ART_SKILLS = {row["skill_id"]: row for row in ALL_MARTIAL_ART_SKILL_ROWS}
+MARTIAL_ART_SKILLS_BY_NAME = {row["name"]: row for row in ALL_MARTIAL_ART_SKILL_ROWS}
 
 
 SKILL_COMBAT_ROWS = (
@@ -199,7 +256,6 @@ SKILL_COMBAT_ROWS = (
     {"name": "先天功", "category": "内功", "damage_type": "钝击", "attack_segments": 1, "damage_dice_count": 1, "damage_die": 6, "damage_bonus": 3, "mp_cost": 1},
     {"name": "华山长拳", "category": "拳掌", "damage_type": "钝击", "attack_segments": 1, "damage_dice_count": 1, "damage_die": 6, "damage_bonus": 2, "mp_cost": 0},
     {"name": "华山剑法", "category": "剑法", "damage_type": "劈砍", "attack_segments": 1, "damage_dice_count": 1, "damage_die": 8, "damage_bonus": 2, "mp_cost": 1},
-    {"name": "养气诀", "category": "内功", "damage_type": "钝击", "attack_segments": 1, "damage_dice_count": 1, "damage_die": 4, "damage_bonus": 2, "mp_cost": 0},
     {"name": "降龙十八掌基础式", "category": "拳掌", "damage_type": "钝击", "attack_segments": 1, "damage_dice_count": 1, "damage_die": 10, "damage_bonus": 2, "mp_cost": 1},
     {"name": "打狗棒法", "category": "棍法", "damage_type": "钝击", "attack_segments": 2, "damage_dice_count": 1, "damage_die": 4, "damage_bonus": 1, "mp_cost": 1},
     {"name": "乾坤大挪移残篇", "category": "内功", "damage_type": "钝击", "attack_segments": 1, "damage_dice_count": 1, "damage_die": 8, "damage_bonus": 2, "mp_cost": 1},
@@ -210,10 +266,7 @@ SKILL_COMBAT_ROWS = (
     {"name": "寒冰神掌", "category": "拳掌", "damage_type": "寒冰", "attack_segments": 1, "damage_dice_count": 1, "damage_die": 8, "damage_bonus": 2, "mp_cost": 1},
     {"name": "一阳指初阶", "category": "指法", "damage_type": "灼烧", "attack_segments": 1, "damage_dice_count": 1, "damage_die": 8, "damage_bonus": 2, "mp_cost": 1},
     {"name": "段家剑法", "category": "剑法", "damage_type": "穿刺", "attack_segments": 1, "damage_dice_count": 1, "damage_die": 8, "damage_bonus": 1, "mp_cost": 0},
-    {"name": "段氏吐纳法", "category": "内功", "damage_type": "钝击", "attack_segments": 1, "damage_dice_count": 1, "damage_die": 4, "damage_bonus": 3, "mp_cost": 0},
     {"name": "天山折梅手", "category": "拳掌", "damage_type": "钝击", "attack_segments": 2, "damage_dice_count": 1, "damage_die": 4, "damage_bonus": 1, "mp_cost": 1},
-    {"name": "北冥吐纳法", "category": "内功", "damage_type": "钝击", "attack_segments": 1, "damage_dice_count": 1, "damage_die": 4, "damage_bonus": 3, "mp_cost": 0},
-    {"name": "凌波微步初阶", "category": "身法", "damage_type": "钝击", "attack_segments": 1, "damage_dice_count": 1, "damage_die": 6, "damage_bonus": 2, "mp_cost": 0},
     {"name": "金刚拳初阶", "category": "拳掌", "damage_type": "钝击", "attack_segments": 1, "damage_dice_count": 1, "damage_die": 10, "damage_bonus": 2, "mp_cost": 1},
     {"name": "火焰刀初阶", "category": "刀法", "damage_type": "灼烧", "attack_segments": 1, "damage_dice_count": 1, "damage_die": 10, "damage_bonus": 1, "mp_cost": 1},
     {"name": "落英神剑掌", "category": "拳掌", "damage_type": "钝击", "attack_segments": 2, "damage_dice_count": 1, "damage_die": 4, "damage_bonus": 1, "mp_cost": 1},
@@ -288,15 +341,68 @@ for row in ENEMY_ROWS:
 
 BOSS_ROWS = (
     {"boss_id": "wushen_mirror", "name": "武神镜像", "floor": 7, "hp": 70, "ac": 19, "attack_bonus": 7, "damage_dice": "1d12+5", "damage_type": "钝击", "check_dc": 18, "fail_damage_dice": "1d11+11", "ultimate_drop_chance": 10, "desc": "武道极致的投影，集百家武学于一身的终极试炼。"},
+    {"boss_id": "true_wushen", "name": "真·武神", "floor": 7, "hp": 120, "ac": 23, "attack_bonus": 11, "damage_dice": "2d10+8", "damage_type": "真气", "check_dc": 22, "fail_damage_dice": "2d12+12", "ultimate_drop_chance": 100, "desc": "武神塔真正的主人，只在炼狱尽头现身。"},
 )
 BOSSES = {row["boss_id"]: row for row in BOSS_ROWS}
 
 
 BOSS_CLEAR_REWARD_ROWS = (
-    {"difficulty": "普通", "essence": 2, "scrolls": 5, "elixir": 5, "silver": 100},
-    {"difficulty": "困难", "essence": 4, "scrolls": 10, "elixir": 5, "silver": 100},
+    {"difficulty": "普通", "essence": 8, "elixir": 5, "silver": 100},
+    {"difficulty": "困难", "essence": 14, "elixir": 5, "silver": 100},
+    {"difficulty": "炼狱", "essence": 24, "elixir": 8, "silver": 160},
 )
 BOSS_CLEAR_REWARDS = {row["difficulty"]: row for row in BOSS_CLEAR_REWARD_ROWS}
+
+
+# === 经验升级系统 (参考 D&D 5e 规则) ===
+# 升级所需经验 (1-20级)
+LEVEL_UP_XP = {
+    1: 0,      # 初始等级
+    2: 300,    # Lv1→Lv2
+    3: 900,    # Lv2→Lv3
+    4: 2700,   # Lv3→Lv4
+    5: 6500,   # Lv4→Lv5
+    6: 14000,  # Lv5→Lv6
+    7: 23000,  # Lv6→Lv7
+    8: 34000,  # Lv7→Lv8
+    9: 48000,  # Lv8→Lv9
+    10: 64000, # Lv9→Lv10
+    11: 85000, # Lv10→Lv11
+    12: 100000,# Lv11→Lv12
+    13: 120000,# Lv12→Lv13
+    14: 140000,# Lv13→Lv14
+    15: 165000,# Lv14→Lv15
+    16: 195000,# Lv15→Lv16
+    17: 225000,# Lv16→Lv17
+    18: 265000,# Lv17→Lv18
+    19: 305000,# Lv18→Lv19
+    20: 355000,# Lv19→Lv20
+}
+MAX_LEVEL = 20
+
+# 每层敌人基础经验值
+ENEMY_XP_BY_FLOOR = {
+    1: 50,   # 第1层守塔武师
+    2: 100,  # 第2层护院教头
+    3: 200,  # 第3层铜人僧
+    4: 400,  # 第4层飞剑客
+    5: 800,  # 第5层毒砂掌客
+    6: 1600, # 第6层修罗刀使
+    7: 5000, # Boss 武神镜像
+}
+
+# 升级属性加成 (每级获得)
+LEVEL_UP_BONUS = {
+    "hp_base": 6,      # 每级基础HP +6
+    "hp_con_multi": 1, # 每级体质加成 ×1
+    "mp_base": 2,      # 每级基础MP +2
+    "mp_int_multi": 1, # 每级智力加成 ×1
+    "ac_bonus": 0,     # AC每级+0
+}
+
+# 主要属性提升 (每2级，根据门派主属性)
+ATTRIBUTE_UP_INTERVAL = 2
+ATTRIBUTE_UP_VALUE = 1
 
 
 BACKPACK_ROWS = (
@@ -310,24 +416,27 @@ BACKPACKS_BY_NAME = {row["name"]: row for row in BACKPACK_ROWS}
 
 
 META_UPGRADE_ROWS = (
-    {"upgrade_id": "fishing_preparation", "label": "渔隐行装", "level": 0, "carry_bait_id": "dragon_musk", "carry_bait_qty": 0, "fishing_quality_bonus": 0, "initial_backpack_bonus": 0, "essence_cost": 0, "scroll_cost": 0, "description": "未强化。"},
-    {"upgrade_id": "fishing_preparation", "label": "渔隐行装", "level": 1, "carry_bait_id": "dragon_musk", "carry_bait_qty": 1, "fishing_quality_bonus": 10, "initial_backpack_bonus": 0, "essence_cost": 2, "scroll_cost": 5, "description": "出门携带龙涎香饵×1，钓鱼品质修正+10。"},
-    {"upgrade_id": "fishing_preparation", "label": "渔隐行装", "level": 2, "carry_bait_id": "dragon_musk", "carry_bait_qty": 3, "fishing_quality_bonus": 30, "initial_backpack_bonus": 0, "essence_cost": 4, "scroll_cost": 10, "description": "出门携带龙涎香饵×3，钓鱼品质修正+30。"},
-    {"upgrade_id": "fishing_preparation", "label": "渔隐行装", "level": 3, "carry_bait_id": "dragon_musk", "carry_bait_qty": 5, "fishing_quality_bonus": 50, "initial_backpack_bonus": 0, "essence_cost": 6, "scroll_cost": 15, "description": "出门携带龙涎香饵×5，钓鱼品质修正+50。"},
-    {"upgrade_id": "backpack_foundation", "label": "百纳行囊术", "level": 0, "carry_bait_id": "", "carry_bait_qty": 0, "fishing_quality_bonus": 0, "initial_backpack_bonus": 0, "essence_cost": 0, "scroll_cost": 0, "description": "未强化。"},
-    {"upgrade_id": "backpack_foundation", "label": "百纳行囊术", "level": 1, "carry_bait_id": "", "carry_bait_qty": 0, "fishing_quality_bonus": 0, "initial_backpack_bonus": 4, "essence_cost": 2, "scroll_cost": 5, "description": "青布行囊初始容量+4格。"},
-    {"upgrade_id": "backpack_foundation", "label": "百纳行囊术", "level": 2, "carry_bait_id": "", "carry_bait_qty": 0, "fishing_quality_bonus": 0, "initial_backpack_bonus": 8, "essence_cost": 4, "scroll_cost": 10, "description": "青布行囊初始容量+8格。"},
-    {"upgrade_id": "backpack_foundation", "label": "百纳行囊术", "level": 3, "carry_bait_id": "", "carry_bait_qty": 0, "fishing_quality_bonus": 0, "initial_backpack_bonus": 12, "essence_cost": 6, "scroll_cost": 15, "description": "青布行囊初始容量+12格。"},
-    {"upgrade_id": "starting_silver", "label": "行侠盘缠", "level": 0, "starting_silver_bonus": 0, "essence_cost": 0, "scroll_cost": 0, "description": "未强化。"},
-    {"upgrade_id": "starting_silver", "label": "行侠盘缠", "level": 1, "starting_silver_bonus": 20, "essence_cost": 1, "scroll_cost": 3, "description": "新局开局碎银+20两。"},
-    {"upgrade_id": "starting_silver", "label": "行侠盘缠", "level": 2, "starting_silver_bonus": 50, "essence_cost": 3, "scroll_cost": 8, "description": "新局开局碎银+50两。"},
-    {"upgrade_id": "starting_silver", "label": "行侠盘缠", "level": 3, "starting_silver_bonus": 90, "essence_cost": 5, "scroll_cost": 12, "description": "新局开局碎银+90两。"},
-    {"upgrade_id": "starting_vigor", "label": "护体真气", "level": 0, "max_hp_bonus": 0, "essence_cost": 0, "scroll_cost": 0, "description": "未强化。"},
-    {"upgrade_id": "starting_vigor", "label": "护体真气", "level": 1, "max_hp_bonus": 3, "essence_cost": 1, "scroll_cost": 3, "description": "新局开局HP上限+3。"},
-    {"upgrade_id": "starting_vigor", "label": "护体真气", "level": 2, "max_hp_bonus": 6, "essence_cost": 3, "scroll_cost": 8, "description": "新局开局HP上限+6。"},
-    {"upgrade_id": "starting_vigor", "label": "护体真气", "level": 3, "max_hp_bonus": 10, "essence_cost": 5, "scroll_cost": 12, "description": "新局开局HP上限+10。"},
+    {"upgrade_id": "fishing_preparation", "label": "渔隐行装", "level": 0, "carry_bait_id": "dragon_musk", "carry_bait_qty": 0, "fishing_quality_bonus": 0, "initial_backpack_bonus": 0, "essence_cost": 0, "description": "未强化。"},
+    {"upgrade_id": "fishing_preparation", "label": "渔隐行装", "level": 1, "carry_bait_id": "dragon_musk", "carry_bait_qty": 1, "fishing_quality_bonus": 10, "initial_backpack_bonus": 0, "essence_cost": 10, "description": "出门携带龙涎香饵×1，钓鱼品质修正+10。"},
+    {"upgrade_id": "fishing_preparation", "label": "渔隐行装", "level": 2, "carry_bait_id": "dragon_musk", "carry_bait_qty": 3, "fishing_quality_bonus": 30, "initial_backpack_bonus": 0, "essence_cost": 18, "description": "出门携带龙涎香饵×3，钓鱼品质修正+30。"},
+    {"upgrade_id": "fishing_preparation", "label": "渔隐行装", "level": 3, "carry_bait_id": "dragon_musk", "carry_bait_qty": 5, "fishing_quality_bonus": 50, "initial_backpack_bonus": 0, "essence_cost": 28, "description": "出门携带龙涎香饵×5，钓鱼品质修正+50。"},
+    {"upgrade_id": "backpack_foundation", "label": "百纳行囊术", "level": 0, "carry_bait_id": "", "carry_bait_qty": 0, "fishing_quality_bonus": 0, "initial_backpack_bonus": 0, "essence_cost": 0, "description": "未强化。"},
+    {"upgrade_id": "backpack_foundation", "label": "百纳行囊术", "level": 1, "carry_bait_id": "", "carry_bait_qty": 0, "fishing_quality_bonus": 0, "initial_backpack_bonus": 4, "essence_cost": 10, "description": "青布行囊初始容量+4格。"},
+    {"upgrade_id": "backpack_foundation", "label": "百纳行囊术", "level": 2, "carry_bait_id": "", "carry_bait_qty": 0, "fishing_quality_bonus": 0, "initial_backpack_bonus": 8, "essence_cost": 18, "description": "青布行囊初始容量+8格。"},
+    {"upgrade_id": "backpack_foundation", "label": "百纳行囊术", "level": 3, "carry_bait_id": "", "carry_bait_qty": 0, "fishing_quality_bonus": 0, "initial_backpack_bonus": 12, "essence_cost": 28, "description": "青布行囊初始容量+12格。"},
+    {"upgrade_id": "starting_silver", "label": "行侠盘缠", "level": 0, "starting_silver_bonus": 0, "essence_cost": 0, "description": "未强化。"},
+    {"upgrade_id": "starting_silver", "label": "行侠盘缠", "level": 1, "starting_silver_bonus": 20, "essence_cost": 6, "description": "新局开局碎银+20两。"},
+    {"upgrade_id": "starting_silver", "label": "行侠盘缠", "level": 2, "starting_silver_bonus": 50, "essence_cost": 12, "description": "新局开局碎银+50两。"},
+    {"upgrade_id": "starting_silver", "label": "行侠盘缠", "level": 3, "starting_silver_bonus": 90, "essence_cost": 20, "description": "新局开局碎银+90两。"},
+    {"upgrade_id": "starting_vigor", "label": "护体真气", "level": 0, "max_hp_bonus": 0, "essence_cost": 0, "description": "未强化。"},
+    {"upgrade_id": "starting_vigor", "label": "护体真气", "level": 1, "max_hp_bonus": 3, "essence_cost": 6, "description": "新局开局HP上限+3。"},
+    {"upgrade_id": "starting_vigor", "label": "护体真气", "level": 2, "max_hp_bonus": 6, "essence_cost": 12, "description": "新局开局HP上限+6。"},
+    {"upgrade_id": "starting_vigor", "label": "护体真气", "level": 3, "max_hp_bonus": 10, "essence_cost": 20, "description": "新局开局HP上限+10。"},
+    {"upgrade_id": "revive_elixir_carry", "label": "还丹护命", "level": 0, "revive_elixir_cap": 1, "essence_cost": 0, "description": "新局默认最多携带局外小还丹×1，死亡时自动消耗并复活。"},
+    {"upgrade_id": "revive_elixir_carry", "label": "还丹护命", "level": 1, "revive_elixir_cap": 2, "essence_cost": 20, "description": "新局最多携带局外小还丹×2，死亡时自动复活。"},
+    {"upgrade_id": "revive_elixir_carry", "label": "还丹护命", "level": 2, "revive_elixir_cap": 3, "essence_cost": 50, "description": "新局最多携带局外小还丹×3，死亡时自动复活。"},
 )
-META_UPGRADE_ORDER = ("fishing_preparation", "backpack_foundation", "starting_silver", "starting_vigor")
+META_UPGRADE_ORDER = ("fishing_preparation", "backpack_foundation", "starting_silver", "starting_vigor", "revive_elixir_carry")
 META_UPGRADES = {
     upgrade_id: {int(row["level"]): row for row in META_UPGRADE_ROWS if row["upgrade_id"] == upgrade_id}
     for upgrade_id in {row["upgrade_id"] for row in META_UPGRADE_ROWS}
@@ -344,12 +453,16 @@ META_UPGRADE_ALIASES = {
     "气血": "starting_vigor",
     "护体": "starting_vigor",
     "护体真气": "starting_vigor",
+    "小还丹": "revive_elixir_carry",
+    "还丹": "revive_elixir_carry",
+    "复活": "revive_elixir_carry",
+    "还丹护命": "revive_elixir_carry",
 }
 
 
 INVENTORY_POLICY_ROWS = (
     {"category": "currency", "examples": "碎银", "in_bag": False, "slot_rule": "货币不占背包格"},
-    {"category": "progression", "examples": "武学素材、武道真髓、武学残卷、武学残页", "in_bag": False, "slot_rule": "进度资源不占背包格"},
+    {"category": "progression", "examples": "武学素材、武道真髓、武学残页", "in_bag": False, "slot_rule": "进度资源不占背包格"},
     {"category": "medicine_consumable", "examples": "金疮药、小还丹", "in_bag": True, "slot_rule": "药品消耗品进入背囊，可用 /金庸使用 药品名"},
     {"category": "fish_consumable", "examples": "鱼获消耗品", "in_bag": True, "slot_rule": "按stack_size堆叠，占用ceil(quantity/stack_size)*slot_size格"},
     {"category": "backpack", "examples": "青布行囊、牛皮百纳囊、锦缎乾坤囊、乾坤一气袋", "in_bag": False, "slot_rule": "已装备背囊不占自身格数"},
@@ -464,8 +577,8 @@ ITEM_DESC = {
     "小还丹": "少林密制丹药，辅以数十种名贵药材，服用后可回护心脉。",
     "大还丹": "传说中的圣药，生死人肉白骨，乃武林中人梦寐以求之物。",
     "武学素材": "修习进阶武学所需的通用材料，可从战斗、奇遇等事件中获得。",
-    "武道真髓": "通关后凝聚的局外修行资源，用于提升局外强化等级。",
-    "武学残卷": "通关后获得的残破典籍，可与武道真髓一起投入局外强化。",
+    "武道真髓": "每局结算凝聚的局外修行资源，用于提升局外强化等级。",
+    "武学残卷": "旧版局外资源，当前版本不再使用；局外强化统一消耗武道真髓。",
     "中阶武学残页": "记录各门派中阶武学心得的残页，可推动门派武学领悟。",
     "顶级绝学残页": "极罕见的绝学残页，记载门派顶级武学的关键心法。",
 }

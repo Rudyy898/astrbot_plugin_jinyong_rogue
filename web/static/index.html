@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>金庸踢门团 Web 调试</title>
+    <link rel="stylesheet" href="./styles.css">
+  </head>
+  <body>
+    <main class="app">
+      <section class="toolbar">
+        <div class="identity">
+          <label>测试用户 <input id="userId" value="tester-1"></label>
+          <label>昵称 <input id="nickname" value="测试侠客"></label>
+        </div>
+        <div class="quick-grid">
+          <div class="quick-group">
+            <span>开局</span>
+            <button data-cmd="/金庸帮助">帮助</button>
+            <button data-cmd="/金庸门派">门派</button>
+            <div class="start-composer">
+              <div class="start-row">
+                <span class="start-label">门派</span>
+                <button class="is-selected" data-start-sect="华山">华山</button><button class="view-mini" data-cmd="/金庸门派 华山">看</button>
+                <button data-start-sect="少林">少林</button><button class="view-mini" data-cmd="/金庸门派 少林">看</button>
+                <button data-start-sect="武当">武当</button><button class="view-mini" data-cmd="/金庸门派 武当">看</button>
+                <button data-start-sect="峨眉">峨眉</button><button class="view-mini" data-cmd="/金庸门派 峨眉">看</button>
+                <button data-start-sect="全真">全真</button><button class="view-mini" data-cmd="/金庸门派 全真">看</button>
+                <button data-start-sect="丐帮">丐帮</button><button class="view-mini" data-cmd="/金庸门派 丐帮">看</button>
+                <button data-start-sect="明教">明教</button><button class="view-mini" data-cmd="/金庸门派 明教">看</button>
+                <button data-start-sect="青城">青城</button><button class="view-mini" data-cmd="/金庸门派 青城">看</button>
+                <button data-start-sect="雪山派">雪山</button><button class="view-mini" data-cmd="/金庸门派 雪山派">看</button>
+                <button data-start-sect="大理段氏">大理</button><button class="view-mini" data-cmd="/金庸门派 大理段氏">看</button>
+                <button data-start-sect="逍遥派">逍遥</button><button class="view-mini" data-cmd="/金庸门派 逍遥派">看</button>
+                <button data-start-sect="金刚宗">金刚</button><button class="view-mini" data-cmd="/金庸门派 金刚宗">看</button>
+                <button data-start-sect="桃花岛">桃花</button><button class="view-mini" data-cmd="/金庸门派 桃花岛">看</button>
+                <button data-start-sect="日月神教">日月</button><button class="view-mini" data-cmd="/金庸门派 日月神教">看</button>
+                <button data-start-sect="血刀门">血刀</button><button class="view-mini" data-cmd="/金庸门派 血刀门">看</button>
+                <button data-start-sect="白驼山庄">白驼</button><button class="view-mini" data-cmd="/金庸门派 白驼山庄">看</button>
+              </div>
+              <div class="start-row">
+                <span class="start-label">难度</span>
+                <button class="is-selected" data-start-difficulty="普通">普通</button>
+                <button data-start-difficulty="困难">困难</button>
+                <button data-start-difficulty="炼狱">炼狱</button>
+                <button class="start-submit" data-start-submit type="button">开局：华山 普通</button>
+              </div>
+            </div>
+          </div>
+          <div class="quick-group">
+            <span>推进</span>
+            <button data-cmd="/金庸状态">状态</button>
+            <button data-cmd="/金庸踢门">随机踢门</button>
+            <button data-cmd="/金庸踢门 1">踢 1 门</button>
+            <button data-cmd="/金庸踢门 2">踢 2 门</button>
+            <button data-cmd="/金庸踢门 3">踢 3 门</button>
+            <button data-cmd="/金庸不挑战">不挑战</button>
+            <button data-cmd="/金庸探索 1">探索 1</button>
+            <button data-cmd="/金庸探索 2">探索 2</button>
+            <button data-cmd="/金庸探索 3">探索 3</button>
+            <button data-cmd="/金庸下一层">下一层</button>
+          </div>
+          <div class="quick-group">
+            <span>战斗/陷阱</span>
+            <button data-cmd="/金庸攻击">攻击</button>
+            <button data-cmd="/金庸防御">防御</button>
+            <button data-cmd="/金庸逃跑">逃跑</button>
+            <button data-cmd="/金庸技能">技能</button>
+            <button data-cmd="/金庸躲避">躲避</button>
+            <button data-cmd="/金庸格挡">格挡</button>
+            <button data-cmd="/金庸反击">反击</button>
+          </div>
+          <div class="quick-group">
+            <span>背包/商店</span>
+            <button data-cmd="/金庸背包">背包</button>
+            <button data-cmd="/金庸绝学">绝学</button>
+            <button data-cmd="/金庸钓鱼">钓鱼</button>
+            <button data-cmd="/金庸钓鱼 列表">鱼池</button>
+            <button data-cmd="/金庸局外">局外</button>
+            <button data-cmd="/金庸放弃">放弃</button>
+            <button data-cmd="/金庸重置 confirm">重置</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="workspace">
+        <aside class="panel">
+          <h1>本地 Web 调试</h1>
+          <div id="summary" class="summary">未载入角色</div>
+          <form id="commandForm" class="command">
+            <input id="commandInput" autocomplete="off" placeholder="/金庸开局 华山 普通">
+            <button type="submit">发送</button>
+          </form>
+          <div class="hint">本页使用仓库内同一套 engine.py 逻辑，本地存档在 data/web/，不影响 QQ 玩家档案。</div>
+        </aside>
+
+        <section class="output">
+          <div id="cardWrap" class="card-wrap"></div>
+          <pre id="textOutput" class="text-output"></pre>
+        </section>
+      </section>
+    </main>
+    <script src="./app.js"></script>
+  </body>
+</html>
